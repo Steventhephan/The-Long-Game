@@ -93,8 +93,7 @@ export function BuildingsPanel() {
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'}
               `}
             >
-              <div>{formatCash(cost)}</div>
-              <div className="opacity-70">cash</div>
+              {formatCash(cost)}
             </button>
           </div>
         )

@@ -69,9 +69,9 @@ export function UpgradesPanel() {
   ]
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       {/* Inner tab bar */}
-      <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
+      <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -90,7 +90,7 @@ export function UpgradesPanel() {
         ))}
       </div>
 
-      <div className="p-3 space-y-2">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
 
         {/* ── Milestones ─────────────────────────────────────────────── */}
         {tab === 'milestones' && (
@@ -167,8 +167,7 @@ export function UpgradesPanel() {
                         disabled={!canAfford}
                         className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold text-center ${canAfford ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                       >
-                        <div>{formatCash(upgrade.cost)}</div>
-                        <div className="opacity-70">cash</div>
+                        {formatCash(upgrade.cost)}
                       </button>
                     </div>
                   )
