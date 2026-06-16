@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Header } from './Header'
 import { TabBar } from './TabBar'
 import { StatsBar } from '../ui/StatsBar'
@@ -7,7 +7,7 @@ import { BuildingsPanel } from '../panels/BuildingsPanel'
 import { UpgradesPanel } from '../panels/UpgradesPanel'
 import { MinigamesPanel } from '../panels/MinigamesPanel'
 import { useGameStore } from '../../store/gameStore'
-import { getAvailableUpgrades, getPendingMilestones } from '../../game/selectors'
+import { getAvailableUpgrades, getPendingMilestones, getBuildingCost } from '../../game/selectors'
 
 const DESKTOP_TABS = [
   { id: 'upgrades', label: 'Upgrades', emoji: '⬆️' },
@@ -19,8 +19,13 @@ export function Layout() {
   const [tab, setTab] = useState('campaign')
   // On desktop the right panel always shows one of the non-campaign tabs
   const [desktopTab, setDesktopTab] = useState('upgrades')
+  const [showOutreachTooltip, setShowOutreachTooltip] = useState(false)
+  const outreachNotified = useRef(false)
+  const [showPrestigeTooltip, setShowPrestigeTooltip] = useState(false)
+  const prestigeNotified = useRef(false)
 
   const state = useGameStore((s) => s)
+  const prestigePoints = useGameStore((s) => s.prestigePoints)
   const seenIds = useRef(new Set<string>())
   const seenStaffIds = useRef(new Set<string>())
   const buildings = useGameStore((s) => s.buildings)
@@ -48,6 +53,34 @@ export function Layout() {
   const anyMinigameUnlocked = Object.values(state.minigames).some((mg) => mg.unlocked)
   const lockedTabs = anyMinigameUnlocked ? new Set<string>() : new Set(['outreach'])
 
+  // Show outreach tooltip the first time it unlocks
+  useEffect(() => {
+    if (anyMinigameUnlocked && !outreachNotified.current) {
+      outreachNotified.current = true
+      setShowOutreachTooltip(true)
+      setTimeout(() => setShowOutreachTooltip(false), 4000)
+    }
+  }, [anyMinigameUnlocked])
+
+  // Show prestige points bubble after a prestige reset
+  useEffect(() => {
+    if (prestigePoints > 0 && !prestigeNotified.current) {
+      prestigeNotified.current = true
+      setShowPrestigeTooltip(true)
+      setTimeout(() => setShowPrestigeTooltip(false), 6000)
+    }
+  }, [prestigePoints])
+
+  // Staff badge: gray unless player can afford at least one building
+  const staffBadgeAffordable = Object.values(buildings).some((b) => {
+    if (b.autoRecruit) return false
+    const visible = totalSupportersEarned >= b.unlockAt || b.count > 0
+    if (!visible) return false
+    const id = b.id
+    const unseenNew = !seenStaffIds.current.has(id)
+    return unseenNew && cash >= getBuildingCost(state, id)
+  })
+
   function markSeen(newTab: string) {
     if (newTab === 'upgrades') {
       for (const id of allRewardIds) seenIds.current.add(id)
@@ -70,7 +103,7 @@ export function Layout() {
   }
 
   const badges = { upgrades: rewardsBadge(tab), staff: staffBadge(tab) }
-  const badgeAffordable = { upgrades: upgradesBadgeAffordable, staff: true }
+  const badgeAffordable = { upgrades: upgradesBadgeAffordable, staff: staffBadgeAffordable }
 
   return (
     <>
@@ -84,13 +117,31 @@ export function Layout() {
           {tab === 'staff' && <BuildingsPanel />}
           {tab === 'outreach' && <MinigamesPanel />}
         </main>
-        <TabBar
-          active={tab}
-          onChange={handleTabChange}
-          badges={badges}
-          badgeAffordable={badgeAffordable}
-          lockedTabs={lockedTabs}
-        />
+        <div className="relative flex-shrink-0">
+          {showOutreachTooltip && (
+            <div className="absolute bottom-full right-4 mb-2 z-20 pointer-events-none">
+              <div className="bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-lg whitespace-nowrap">
+                📢 Outreach Activities Unlocked!
+                <div className="absolute bottom-0 right-8 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-6 border-l-transparent border-r-transparent border-t-purple-700" style={{ borderTopWidth: 6 }} />
+              </div>
+            </div>
+          )}
+          {showPrestigeTooltip && (
+            <div className="absolute bottom-full left-[37.5%] -translate-x-1/2 mb-2 z-20 pointer-events-none">
+              <div className="bg-yellow-500 text-yellow-900 text-xs font-bold px-3 py-2 rounded-xl shadow-lg whitespace-nowrap">
+                ⭐ Prestige rewards available
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-l-transparent border-r-transparent border-t-yellow-500" style={{ borderTopWidth: 6 }} />
+              </div>
+            </div>
+          )}
+          <TabBar
+            active={tab}
+            onChange={handleTabChange}
+            badges={badges}
+            badgeAffordable={badgeAffordable}
+            lockedTabs={lockedTabs}
+          />
+        </div>
       </div>
 
       {/* ── Desktop layout ──────────────────────────────── */}
@@ -128,6 +179,16 @@ export function Layout() {
                   >
                     <span className="relative">
                       {locked ? '🔒' : t.emoji}
+                      {t.id === 'outreach' && showOutreachTooltip && !locked && (
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-purple-700 text-white text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap pointer-events-none shadow-lg">
+                          Unlocked!
+                        </span>
+                      )}
+                      {t.id === 'upgrades' && showPrestigeTooltip && (
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-yellow-500 text-yellow-900 text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap pointer-events-none shadow-lg">
+                          ⭐ Prestige rewards available
+                        </span>
+                      )}
                       {!locked && badge > 0 && (
                         <span className={`absolute -top-1 -right-2 text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none
                           ${affordable ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-400 text-gray-100'}`}>

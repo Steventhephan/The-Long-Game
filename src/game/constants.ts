@@ -4,7 +4,7 @@ export const INITIAL_BUILDINGS: Record<BuildingId, Building> = {
   volunteer: {
     id: 'volunteer',
     name: 'Volunteer',
-    description: 'A neighbor who knocks doors for you. Recruited automatically via Charisma.',
+    description: 'A supporter who canvasses for you. They are drawn to your Charisma.',
     baseCost: 0,
     costScaling: 1,
     baseSupportersPerSecond: 0.1,
@@ -49,7 +49,7 @@ export const INITIAL_BUILDINGS: Record<BuildingId, Building> = {
   campaign_bus: {
     id: 'campaign_bus',
     name: 'Campaign Bus',
-    description: 'You on the road, rallying crowds across the region.',
+    description: 'You hit the road, rallying crowds across the region.',
     baseCost: 120000,
     costScaling: 1.15,
     baseSupportersPerSecond: 60,

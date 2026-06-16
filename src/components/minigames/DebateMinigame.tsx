@@ -62,6 +62,46 @@ const QUESTIONS: Question[] = [
     ],
     explanation: 'Quick accountability is less damaging than a cover-up.',
   },
+  {
+    text: 'You\'re running 10 points behind in the polls with two weeks left.',
+    options: [
+      { text: 'Double down on earned media — local town halls every night.', correct: true, consequence: 'Authentic momentum builds. Polls tighten.' },
+      { text: 'Pull negative ads targeting your opponent\'s family.', correct: false, consequence: 'Backlash is swift. You drop 5 more points.' },
+      { text: 'Stop campaigning and hope for a gaffe from your opponent.', correct: false, consequence: 'Passive strategy reads as giving up. Donors pull out.' },
+      { text: 'Announce a radical new policy to grab headlines.', correct: false, consequence: 'Pivot feels desperate. Core supporters confused.' },
+    ],
+    explanation: 'Ground-level engagement outperforms hail-mary tactics.',
+  },
+  {
+    text: 'An audience member asks you to name the price of a gallon of milk.',
+    options: [
+      { text: 'Give an honest approximate range and acknowledge you\'re focused on bigger issues.', correct: true, consequence: 'Honest humility lands well. You seem grounded.' },
+      { text: 'Guess a wildly incorrect number confidently.', correct: false, consequence: 'The clip goes viral. "Out of touch" becomes the headline.' },
+      { text: 'Refuse to answer and move on.', correct: false, consequence: 'Evasion looks worse than not knowing.' },
+      { text: 'Lecture the audience about supply chain economics.', correct: false, consequence: 'Condescending. The room turns cold.' },
+    ],
+    explanation: 'Voters reward self-awareness over false confidence.',
+  },
+  {
+    text: 'Your opponent claims you\'ve never held a real job.',
+    options: [
+      { text: 'Cite specific work history and pivot to your policy record.', correct: true, consequence: 'Facts on the table. Opponent\'s line falls flat.' },
+      { text: 'Attack their wealth and privileges instead.', correct: false, consequence: 'Feels like whataboutism. Issue stays on you.' },
+      { text: 'Laugh it off and say nothing.', correct: false, consequence: 'Silence reads as concession. Clip replays all night.' },
+      { text: 'Ask the moderator to intervene.', correct: false, consequence: 'You look thin-skinned. Opponent smirks.' },
+    ],
+    explanation: 'Answering directly is always stronger than deflecting.',
+  },
+  {
+    text: 'Time is almost up and you haven\'t made your closing statement.',
+    options: [
+      { text: 'Deliver a crisp, practiced 30-second close focused on one key message.', correct: true, consequence: 'The final word belongs to you. Strong impression.' },
+      { text: 'Try to cram in five policy points.', correct: false, consequence: 'You get cut off mid-sentence. Messy ending.' },
+      { text: 'Ask for extra time and argue with the moderator.', correct: false, consequence: 'You look entitled. The audience cringes.' },
+      { text: 'Skip the close and thank the audience.', correct: false, consequence: 'Wasted opportunity. Your opponent\'s message sticks.' },
+    ],
+    explanation: 'The last thing voters hear defines their memory of the debate.',
+  },
 ]
 
 interface Props { onClose: () => void; onCancel: () => void }
@@ -75,7 +115,14 @@ export function DebateMinigame({ onClose, onCancel }: Props) {
   const TOTAL = 3
   const questions = useMemo(() => {
     const shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5)
-    return shuffled.slice(0, TOTAL)
+    return shuffled.slice(0, TOTAL).map((q) => {
+      const correct = q.options.find((o) => o.correct)!
+      const wrong = q.options.filter((o) => !o.correct).sort(() => Math.random() - 0.5).slice(0, 2)
+      return {
+        ...q,
+        options: [...wrong, correct].sort(() => Math.random() - 0.5),
+      }
+    })
   }, [])
 
   const [qIndex, setQIndex] = useState(0)

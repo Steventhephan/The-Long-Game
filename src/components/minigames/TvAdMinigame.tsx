@@ -108,20 +108,19 @@ export function TvAdMinigame({ onClose, onCancel }: Props) {
               <div className="text-lg font-bold text-red-700">−{formatCash(cost)}</div>
               <div className="text-xs text-red-600">airtime cost</div>
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-              <div className="text-2xl font-bold text-green-700">+{formatNumber(gain)}</div>
-              <div className="text-xs text-green-600">new supporters</div>
-            </div>
+            {(() => {
+              const net = gain - penalty
+              return (
+                <div className={`border rounded-xl p-3 ${net >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                  <div className={`text-2xl font-bold ${net >= 0 ? 'text-green-700' : 'text-red-700'}`}>{net >= 0 ? '+' : ''}{formatNumber(net)}</div>
+                  <div className={`text-xs ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>supporters</div>
+                </div>
+              )
+            })()}
             {cashBonus > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-xl p-3">
                 <div className="text-lg font-bold text-green-700">+{formatCash(cashBonus)}</div>
                 <div className="text-xs text-green-600">donor influx</div>
-              </div>
-            )}
-            {penalty > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                <div className="text-lg font-bold text-red-700">−{formatNumber(penalty)}</div>
-                <div className="text-xs text-red-600">moderates walked</div>
               </div>
             )}
           </div>

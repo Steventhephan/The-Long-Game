@@ -54,6 +54,7 @@ export interface UpgradeEffect {
     | 'charisma_multiplier'
     | 'cash_rate'
     | 'fundraise_multiplier'
+    | 'fundraise_chance'
     | 'court_multiplier'
     | 'court_chance'
   value: number
@@ -126,13 +127,46 @@ export interface GameState {
 
   minigames: Record<MinigameId, MinigameState>
 
+  playerName: string
+
   lastSaved: number
   gameStarted: number
   lastTick: number
 
-  // Transient click-boost display (not saved — resets on load)
+  // Snapshot of resources at the start of the current election (for defeat reset)
+  electionStartSnapshot: {
+    supporters: number
+    cash: number
+    volunteerCount: number
+    totalSupportersEarned: number
+    purchasedUpgradeIds: string[]
+  }
+
+  // Set true when a competitor reaches the threshold first
+  competitorWonElection: boolean
+
+  // Crisis management
+  activeCrisis: string | null   // id of the currently-displaying crisis, or null
+  crisisFiresAt: number         // ms timestamp when next crisis will fire (0 = not yet scheduled)
+  crisisResolution: { optionIndex: number; outcomeType: string; outcomeDelta: number } | null
+
+  // Ability cooldowns — maps ability id → timestamp when cooldown ends
+  abilityCooldowns: Record<string, number>
+  // Transient: last ability result for float display (not saved)
+  lastAbilityResult: { abilityId: string; supporterDelta: number; cashDelta: number; good: boolean } | null
+  // Per-ability hit/miss result — persists for the full cooldown duration
+  abilityResults: Record<string, 'hit' | 'miss'>
+
+  // Policy platform — maps issueId → active stanceId (null = no stance adopted)
+  policyStances: Record<string, string | null>
+  // How many times each issue's stance has been switched (used for escalating penalty)
+  policyStanceSwitchCounts: Record<string, number>
+
+  // Transient activity-boost display (not saved — resets on load)
   knockBoostSps: number
   knockBoostCps: number
-  lastCourtResult: { supporters: number; volunteers: number } | null
+  fundraiseBoostCps: number
+  lastClickedForCash: 'knock' | 'fundraise' | null
+  lastCourtResult: { supporters: number } | null
   courtCooldownEndsAt: number
 }

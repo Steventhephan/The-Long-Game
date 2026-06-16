@@ -1,14 +1,39 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { ELECTION_ORDER } from '../../game/constants'
+import type { ElectionTier } from '../../game/types'
 
 export function Header() {
   const elections = useGameStore((s) => s.elections)
   const saveNow = useGameStore((s) => s.saveNow)
   const hardReset = useGameStore((s) => s.hardReset)
+  const devSkipToTier = useGameStore((s) => s.devSkipToTier)
   const [confirming, setConfirming] = useState(false)
+  const [savedFlash, setSavedFlash] = useState(false)
+  const [loadConfirming, setLoadConfirming] = useState(false)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const wonCount = ELECTION_ORDER.filter((t) => elections[t].won).length
+
+  function handleSave() {
+    saveNow()
+    setSavedFlash(true)
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+    savedTimer.current = setTimeout(() => setSavedFlash(false), 2000)
+  }
+
+  function handleLoadClick() {
+    if (!loadConfirming) {
+      setLoadConfirming(true)
+      if (loadTimer.current) clearTimeout(loadTimer.current)
+      loadTimer.current = setTimeout(() => setLoadConfirming(false), 5000)
+    } else {
+      if (loadTimer.current) clearTimeout(loadTimer.current)
+      setLoadConfirming(false)
+      window.location.reload()
+    }
+  }
 
   function handleHardReset() {
     hardReset()
@@ -26,11 +51,27 @@ export function Header() {
             </div>
           )}
           <button
-            onClick={saveNow}
-            className="text-xs bg-blue-700 hover:bg-blue-600 px-2 py-1 rounded"
+            onClick={handleSave}
+            className={`text-xs px-2 py-1 rounded transition-colors ${savedFlash ? 'bg-green-600' : 'bg-blue-700 hover:bg-blue-600'}`}
           >
-            Save
+            {savedFlash ? 'Saved!' : 'Save'}
           </button>
+          <button
+            onClick={handleLoadClick}
+            className={`text-xs px-2 py-1 rounded transition-colors ${loadConfirming ? 'bg-orange-500 hover:bg-orange-400' : 'bg-blue-700 hover:bg-blue-600'}`}
+          >
+            {loadConfirming ? 'Are you sure?' : 'Load'}
+          </button>
+          <select
+            onChange={(e) => { if (e.target.value) { devSkipToTier(e.target.value as ElectionTier); e.target.value = '' } }}
+            defaultValue=""
+            className="text-xs bg-yellow-500 text-black px-2 py-1 rounded cursor-pointer"
+          >
+            <option value="" disabled>⚡ Skip to…</option>
+            {ELECTION_ORDER.map((tier) => (
+              <option key={tier} value={tier}>{tier.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
           <button
             onClick={() => setConfirming(true)}
             className="text-xs bg-red-700 hover:bg-red-600 px-2 py-1 rounded"

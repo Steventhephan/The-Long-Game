@@ -41,18 +41,39 @@ export const COMPETITORS_PER_TIER: Record<ElectionTier, number> = {
   president: 5,
 }
 
-// Target fraction of the threshold each competitor aims to reach by election day
-// Lead competitor targets 90% — a real threat; others taper down
-const TARGET_FRACTIONS = [0.90, 0.75, 0.62, 0.50, 0.42]
+// Target fraction of the threshold each competitor aims to reach by election day.
+// Lead competitor calibrated to reach threshold well before election end — aggressive by design.
+const TARGET_FRACTIONS = [1.50, 1.20, 0.95, 0.75, 0.60]
 
 // Fraction of the threshold competitors start with at each tier (simulating established profiles)
 const HEAD_START_FRACTION: Record<ElectionTier, number> = {
   city_council: 0,
-  mayor: 0.08,
-  state_legislature: 0.15,
-  governor: 0.20,
-  senate: 0.25,
-  president: 0.30,
+  mayor: 0.40,
+  state_legislature: 0.55,
+  governor: 0.62,
+  senate: 0.68,
+  president: 0.72,
+}
+
+// Chance per second that a competitor gets a supporter burst (scales with tier)
+const BURST_CHANCE_PER_TIER: Record<ElectionTier, number> = {
+  city_council: 0,
+  mayor: 0.002,
+  state_legislature: 0.003,
+  governor: 0.004,
+  senate: 0.005,
+  president: 0.006,
+}
+
+// Burst size as fraction of election threshold (lead competitor gets 2x)
+const BURST_FRACTION = 0.01
+
+export function getBurstChance(tier: ElectionTier): number {
+  return BURST_CHANCE_PER_TIER[tier] ?? 0
+}
+
+export function getBurstSize(threshold: number, isLead: boolean): number {
+  return Math.floor(threshold * BURST_FRACTION * (isLead ? 2 : 1))
 }
 
 export function generateCompetitors(tier: ElectionTier, supportersRequired: number): Competitor[] {
@@ -60,17 +81,21 @@ export function generateCompetitors(tier: ElectionTier, supportersRequired: numb
   const usedNames = new Set<string>()
   const electionDays = ELECTION_DAYS_BY_TIER[tier] ?? 365
   const totalSeconds = electionDays * 10  // 1 in-game day = 10 real seconds
-  const headStart = Math.floor(supportersRequired * HEAD_START_FRACTION[tier])
+  const baseHeadStart = supportersRequired * HEAD_START_FRACTION[tier]
 
   return Array.from({ length: count }, (_, i) => {
-    const fraction = TARGET_FRACTIONS[i] ?? 0.40
+    const fraction = TARGET_FRACTIONS[i] ?? 0.50
+    // Each competitor has a slightly different head start (±20% variance)
+    const variance = 0.80 + Math.random() * 0.40
+    const headStart = Math.floor(baseHeadStart * variance)
     const targetSupporters = supportersRequired * fraction
-    const baseRate = targetSupporters / totalSeconds
+    const toEarn = Math.max(targetSupporters - headStart, targetSupporters * 0.5)
+    const baseRate = toEarn / totalSeconds
     return {
       id: `competitor_${i}`,
       name: randomName(usedNames),
       supporters: headStart,
-      supportersPerSecond: baseRate * 0.5,  // starts at 50%, accelerates to 200% by end
+      supportersPerSecond: baseRate * 0.3,  // starts at 30%, accelerates to 300% by end
       baseRate,
     }
   })

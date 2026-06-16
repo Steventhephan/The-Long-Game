@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { GameState, BuildingId, MinigameId, CharismaLevel } from '../game/types'
+import type { GameState, BuildingId, MinigameId, CharismaLevel, ElectionTier } from '../game/types'
 import {
   INITIAL_BUILDINGS,
   ELECTIONS,
@@ -20,6 +20,7 @@ import {
   getCashPerSecond,
   getBuildingCost,
   getFundraiseMultiplier,
+  getFundraiseChance,
   getCourtMultiplier,
   getCourtChanceBonus,
 } from '../game/selectors'
@@ -28,12 +29,14 @@ import {
   getCarryoverRates,
   PRESTIGE_UPGRADES_BY_ID,
 } from '../game/prestige'
-import { generateCompetitors } from '../game/competitors'
+import { generateCompetitors, getBurstChance, getBurstSize } from '../game/competitors'
 import { saveGame, loadSave } from '../game/persistence'
+import { CRISES, resolveCrisisOutcome } from '../game/crises'
+import { POLICY_ISSUES } from '../game/policy'
 
 interface GameActions {
   knock: () => void
-  fundraise: () => void
+  fundraise: () => boolean  // returns true if successful
   courtInterestGroups: () => void
   buyBuilding: (id: BuildingId) => void
   buyUpgrade: (id: string) => void
@@ -48,13 +51,24 @@ interface GameActions {
   triggerMinigame: (id: MinigameId) => void
   cancelMinigame: (id: MinigameId) => void
   completeMinigame: (id: MinigameId, supporterBonus: number) => void
+  setPlayerName: (name: string) => void
+  startNewGame: (name: string) => void
   saveNow: () => void
   resetGame: () => void
   hardReset: () => void
+  devSkipToTier: (tier: ElectionTier) => void
+  chooseCrisisOption: (optionIndex: number) => void
+  dismissCrisis: () => void
+  adoptPolicyStance: (issueId: string, stanceId: string) => void
+  holdRally: () => void
+  issueStatement: () => void
+  nationalFundraiser: () => void
+  addressNation: () => void
 }
 
-// Module-level click history for computing live click SPS/CPS display
+// Module-level activity history for computing live boost display (3-second rolling window)
 let clickBuffer: { t: number; supporters: number; cash: number }[] = []
+let fundraiseBuffer: { t: number; cash: number }[] = []
 
 function buildInitialState(): GameState {
   return {
@@ -68,8 +82,12 @@ function buildInitialState(): GameState {
     charismaLevel: 0,
     minigameCompletions: { tv_ad: 0, debate: 0, stump_speech: 0, fundraiser: 0 },
     clickSuccessChance: 0.25,
+    electionStartSnapshot: { supporters: 0, cash: 0, volunteerCount: 0, totalSupportersEarned: 0, purchasedUpgradeIds: [] },
+    competitorWonElection: false,
     knockBoostSps: 0,
     knockBoostCps: 0,
+    fundraiseBoostCps: 0,
+    lastClickedForCash: null,
     lastCourtResult: null,
     courtCooldownEndsAt: 0,
     clickMultiplier: 1,
@@ -87,9 +105,18 @@ function buildInitialState(): GameState {
     prestigePoints: 0,
     purchasedPrestigeUpgrades: {},
     minigames: structuredClone(INITIAL_MINIGAMES),
+    playerName: '',
     lastSaved: Date.now(),
     gameStarted: Date.now(),
     lastTick: Date.now(),
+    activeCrisis: null,
+    crisisFiresAt: 0,
+    crisisResolution: null,
+    policyStances: {},
+    policyStanceSwitchCounts: {},
+    abilityCooldowns: {},
+    lastAbilityResult: null,
+    abilityResults: {},
   }
 }
 
@@ -106,6 +133,8 @@ function mergeWithSave(base: GameState, saved: Partial<GameState>): GameState {
   if (saved.prestigeCount !== undefined) state.prestigeCount = saved.prestigeCount
   if (saved.prestigePoints !== undefined) state.prestigePoints = saved.prestigePoints
   if (saved.purchasedPrestigeUpgrades) state.purchasedPrestigeUpgrades = saved.purchasedPrestigeUpgrades
+  if (saved.playerName !== undefined) state.playerName = saved.playerName
+  if (saved.electionStartSnapshot) state.electionStartSnapshot = saved.electionStartSnapshot
   if (saved.gameStarted !== undefined) state.gameStarted = saved.gameStarted
   if (saved.currentTier !== undefined) state.currentTier = saved.currentTier
   if (saved.electionDaysRemaining !== undefined) {
@@ -153,6 +182,9 @@ function mergeWithSave(base: GameState, saved: Partial<GameState>): GameState {
       if (state.minigames[mid]) Object.assign(state.minigames[mid], mg)
     }
   }
+  if (saved.policyStances) state.policyStances = saved.policyStances as Record<string, string | null>
+  if (saved.crisisFiresAt !== undefined) state.crisisFiresAt = saved.crisisFiresAt as number
+  // activeCrisis is intentionally not restored (don't resume a mid-crisis state after reload)
 
   const offlineSec = saved.lastSaved ? Math.min((Date.now() - saved.lastSaved) / 1000, 8 * 3600) : 0
   if (offlineSec > 0) {
@@ -194,17 +226,23 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
         totalSupportersEarned: s.totalSupportersEarned + earned,
         cash: s.cash + cashEarned,
         totalCashEarned: s.totalCashEarned + cashEarned,
+        lastClickedForCash: 'knock',
       }))
     },
 
     fundraise() {
       const state = get()
+      const chance = getFundraiseChance(state)
+      if (Math.random() > chance) return false
       const mult = getFundraiseMultiplier(state)
       const amount = Math.max(10, Math.floor(state.supporters * 0.005 * mult))
+      fundraiseBuffer.push({ t: Date.now(), cash: amount })
       set((s) => ({
         cash: s.cash + amount,
         totalCashEarned: s.totalCashEarned + amount,
+        lastClickedForCash: 'fundraise',
       }))
+      return true
     },
 
     courtInterestGroups() {
@@ -212,24 +250,30 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
       if (Date.now() < state.courtCooldownEndsAt) return
       const BASE_COURT_CHANCE = 0.05
       const courtChance = Math.min(0.25, BASE_COURT_CHANCE + getCourtChanceBonus(state))
-      if (Math.random() > courtChance) {
-        set({ lastCourtResult: null })
+      const hit = Math.random() <= courtChance
+      if (!hit) {
+        set((s) => ({
+          lastCourtResult: { supporters: 0 },
+          courtCooldownEndsAt: Date.now() + 30000,
+          abilityResults: { ...s.abilityResults, court: 'miss' },
+        }))
         return
       }
       const nextElection = getNextElection(state)
       const required = nextElection?.supportersRequired ?? 10000
       const mult = getCourtMultiplier(state)
-      const supporterBonus = Math.floor(required * 0.025 * mult)
-      const volunteerBonus = Math.max(5, Math.floor(state.buildings.volunteer.count * 0.15) + 5)
+      const COURT_FRACTION: Record<string, number> = {
+        city_council: 0.08, mayor: 0.06, state_legislature: 0.04,
+        governor: 0.02, senate: 0.008, president: 0.003,
+      }
+      const fraction = COURT_FRACTION[state.currentTier] ?? 0.01
+      const supporterBonus = Math.floor(required * fraction * mult)
       set((s) => ({
         supporters: s.supporters + supporterBonus,
         totalSupportersEarned: s.totalSupportersEarned + supporterBonus,
-        buildings: {
-          ...s.buildings,
-          volunteer: { ...s.buildings.volunteer, count: s.buildings.volunteer.count + volunteerBonus },
-        },
-        lastCourtResult: { supporters: supporterBonus, volunteers: volunteerBonus },
-        courtCooldownEndsAt: Date.now() + 20000,
+        lastCourtResult: { supporters: supporterBonus },
+        courtCooldownEndsAt: Date.now() + 30000,
+        abilityResults: { ...s.abilityResults, court: 'hit' },
       }))
     },
 
@@ -288,10 +332,22 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
       const state = get()
       const now = Date.now()
 
-      // Pause everything while player is viewing victory screen
-      if (state.awaitingNextElection) {
+      // Pause everything while player is viewing victory screen or handling a crisis
+      if (state.awaitingNextElection || state.activeCrisis) {
         set({ lastTick: now })
         return
+      }
+
+      // Fire a crisis once the player has won the mayor election
+      if (state.elections.mayor.won) {
+        if (state.crisisFiresAt === 0) {
+          // Schedule first crisis: 10-20 in-game days from now (100-200 real seconds)
+          set({ crisisFiresAt: now + 100000 + Math.random() * 100000 })
+        } else if (now >= state.crisisFiresAt) {
+          const crisis = CRISES[Math.floor(Math.random() * CRISES.length)]!
+          set({ activeCrisis: crisis.id })
+          return
+        }
       }
 
       const delta = (now - state.lastTick) / 1000
@@ -304,8 +360,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
       const recruitRate = getVolunteerRecruitRate(state)
       const newVolunteer = Math.random() < recruitRate * delta ? 1 : 0
 
-      // Advance election timer: 1 in-game day = 10 real seconds
-      let newDayFraction = state.electionDayFraction + delta / 10
+      // Advance election timer: 1 in-game day = 7 real seconds
+      let newDayFraction = state.electionDayFraction + delta / 7
       let newDaysRemaining = state.electionDaysRemaining
       while (newDayFraction >= 1 && newDaysRemaining > 0) {
         newDayFraction -= 1
@@ -313,15 +369,21 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
       }
       newDaysRemaining = Math.max(0, newDaysRemaining)
 
-      // Advance competitor supporters — rate accelerates from 50% to 200% of baseRate
+      // Advance competitor supporters — rate accelerates from 30% to 300% of baseRate
       const electionTotalDays = ELECTION_DAYS_BY_TIER[state.currentTier] ?? 365
       const elapsedFraction = Math.max(0, Math.min(1, 1 - (state.electionDaysRemaining / electionTotalDays)))
-      const newCompetitors = state.competitors.map((c) => {
-        const currentRate = c.baseRate * (0.5 + 1.5 * elapsedFraction)
+      const burstChance = getBurstChance(state.currentTier)
+      const nextElectionForBurst = getNextElection(state)
+      const burstThreshold = nextElectionForBurst?.supportersRequired ?? 0
+      const newCompetitors = state.competitors.map((c, i) => {
+        const currentRate = c.baseRate * (0.3 + 2.7 * elapsedFraction)
+        const burst = burstThreshold > 0 && Math.random() < burstChance * delta
+          ? getBurstSize(burstThreshold, i === 0)
+          : 0
         return {
           ...c,
           supportersPerSecond: currentRate,
-          supporters: c.supporters + currentRate * delta,
+          supporters: c.supporters + currentRate * delta + burst,
         }
       })
 
@@ -336,11 +398,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
       if (elections.governor.won && !minigames.fundraiser.unlocked)
         minigames.fundraiser = { ...minigames.fundraiser, unlocked: true }
 
-      // Compute live click boost from recent knocks (3-second rolling window)
+      // Compute live activity boosts from recent clicks (3-second rolling window)
       const clickCutoff = now - 3000
       clickBuffer = clickBuffer.filter((h) => h.t > clickCutoff)
       const knockBoostSps = clickBuffer.reduce((acc, h) => acc + h.supporters, 0) / 3
       const knockBoostCps = clickBuffer.reduce((acc, h) => acc + h.cash, 0) / 3
+      fundraiseBuffer = fundraiseBuffer.filter((h) => h.t > clickCutoff)
+      const fundraiseBoostCps = fundraiseBuffer.reduce((acc, h) => acc + h.cash, 0) / 3
 
       set((s) => ({
         supporters: s.supporters + earnedSupport,
@@ -353,6 +417,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
         minigames,
         knockBoostSps,
         knockBoostCps,
+        fundraiseBoostCps,
         electionDaysRemaining: newDaysRemaining,
         electionDayFraction: newDayFraction,
         competitors: newCompetitors,
@@ -361,11 +426,20 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
           : s.buildings,
       }))
 
-      // Auto-win as soon as player reaches the threshold (or when time runs out)
+      // Auto-win as soon as player reaches the threshold
       const updated = get()
       const nextElection = getNextElection(updated)
       if (nextElection && updated.supporters >= nextElection.supportersRequired) {
         get().winElection()
+        return
+      }
+
+      // Competitor wins if they reach the threshold first
+      if (nextElection && !updated.competitorWonElection) {
+        const competitorWon = updated.competitors.some((c) => c.supporters >= nextElection.supportersRequired)
+        if (competitorWon) {
+          set({ competitorWonElection: true })
+        }
       }
 
       if (now - state.lastSaved > 30000) {
@@ -391,11 +465,25 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
         competitors: newCompetitors,
         awaitingNextElection: true,
         lastWonTier: next.tier,
+        activeCrisis: null,
+        crisisResolution: null,
       }))
     },
 
     startNextElection() {
-      set({ awaitingNextElection: false, lastTick: Date.now() })
+      const state = get()
+      set({
+        awaitingNextElection: false,
+        competitorWonElection: false,
+        lastTick: Date.now(),
+        electionStartSnapshot: {
+          supporters: state.supporters,
+          cash: state.cash,
+          volunteerCount: state.buildings.volunteer.count,
+          totalSupportersEarned: state.totalSupportersEarned,
+          purchasedUpgradeIds: Object.values(state.upgrades).filter((u) => u.purchased).map((u) => u.id),
+        },
+      })
     },
 
     resetElectionAfterDefeat() {
@@ -403,11 +491,20 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
       const next = getNextElection(state)
       const tier = next?.tier ?? state.currentTier
       const required = next?.supportersRequired ?? 0
+      const snap = state.electionStartSnapshot
+      const purchasedSet = new Set(snap.purchasedUpgradeIds)
       set((s) => ({
-        supporters: Math.floor(s.supporters * 0.7),
+        supporters: snap.supporters,
+        cash: snap.cash,
+        totalSupportersEarned: snap.totalSupportersEarned,
+        buildings: { ...s.buildings, volunteer: { ...s.buildings.volunteer, count: snap.volunteerCount } },
+        upgrades: Object.fromEntries(
+          Object.entries(s.upgrades).map(([id, u]) => [id, { ...u, purchased: purchasedSet.has(id) }])
+        ),
         electionDaysRemaining: ELECTION_DAYS_BY_TIER[tier] ?? 365,
         electionDayFraction: 0,
         competitors: generateCompetitors(tier, required),
+        competitorWonElection: false,
       }))
     },
 
@@ -433,6 +530,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
       }
       set({
         ...fresh,
+        playerName: state.playerName,
         supporters: carriedSupporters,
         totalSupportersEarned: carriedSupporters,
         cash: carriedCash,
@@ -484,6 +582,21 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
       }))
     },
 
+    setPlayerName(name) {
+      set({ playerName: name.slice(0, 20) })
+      saveGame(get())
+    },
+
+    startNewGame(name) {
+      clickBuffer = []
+      fundraiseBuffer = []
+      try { localStorage.clear() } catch { /* ignore */ }
+      const fresh = buildInitialState()
+      fresh.playerName = name.slice(0, 20)
+      set(fresh)
+      saveGame(fresh)
+    },
+
     saveNow() {
       saveGame(get())
       set({ lastSaved: Date.now() })
@@ -496,6 +609,199 @@ export const useGameStore = create<GameState & GameActions>((set, get) => {
     hardReset() {
       try { localStorage.clear() } catch { /* ignore */ }
       set(buildInitialState())
+    },
+
+    devSkipToTier(tier: ElectionTier) {
+      const state = get()
+      const tierIndex = ELECTION_ORDER.indexOf(tier)
+      // Mark all prior elections won
+      const elections = { ...state.elections }
+      for (let i = 0; i < tierIndex; i++) {
+        const t = ELECTION_ORDER[i]!
+        elections[t] = { ...elections[t], won: true }
+      }
+      const required = elections[tier].supportersRequired
+      const supporters = Math.floor(required * 0.1)
+      const cash = Math.floor(required * 0.5)
+      const competitors = generateCompetitors(tier, required)
+      set({
+        elections,
+        currentTier: tier,
+        supporters,
+        totalSupportersEarned: supporters,
+        cash,
+        electionDaysRemaining: ELECTION_DAYS_BY_TIER[tier] ?? 365,
+        electionDayFraction: 0,
+        competitors,
+        awaitingNextElection: false,
+        competitorWonElection: false,
+        activeCrisis: null,
+        crisisResolution: null,
+        electionStartSnapshot: {
+          supporters,
+          cash,
+          volunteerCount: state.buildings.volunteer.count,
+          totalSupportersEarned: supporters,
+          purchasedUpgradeIds: Object.values(state.upgrades).filter((u) => u.purchased).map((u) => u.id),
+        },
+      })
+    },
+
+    chooseCrisisOption(optionIndex: number) {
+      const state = get()
+      if (!state.activeCrisis || state.crisisResolution !== null) return
+      const crisisDef = CRISES.find((c) => c.id === state.activeCrisis)
+      if (!crisisDef) { set({ activeCrisis: null }); return }
+      const option = crisisDef.options[optionIndex]
+      if (!option) return
+
+      const nextElection = getNextElection(state)
+      const required = nextElection?.supportersRequired ?? 10000
+      const cashCost = Math.floor(required * option.costFraction)
+      if (cashCost > 0 && state.cash < cashCost) return
+
+      const outcome = resolveCrisisOutcome(option.outcome)
+      let supporterDelta = 0
+      let competitorSupporterDelta = 0
+      if (outcome.type === 'supporters_pct') supporterDelta = Math.floor(required * outcome.value)
+      if (outcome.type === 'competitor_pct') competitorSupporterDelta = Math.floor(required * outcome.value)
+
+      const outcomeDelta = outcome.type === 'competitor_pct' ? competitorSupporterDelta : supporterDelta
+
+      set((s) => ({
+        cash: s.cash - cashCost,
+        supporters: Math.max(0, s.supporters + supporterDelta),
+        totalSupportersEarned: supporterDelta > 0
+          ? s.totalSupportersEarned + supporterDelta
+          : s.totalSupportersEarned,
+        competitors: competitorSupporterDelta !== 0
+          ? s.competitors.map((c, i) =>
+              i === 0 ? { ...c, supporters: Math.max(0, c.supporters + competitorSupporterDelta) } : c
+            )
+          : s.competitors,
+        crisisResolution: { optionIndex, outcomeType: outcome.type, outcomeDelta },
+      }))
+    },
+    dismissCrisis() {
+      const now = Date.now()
+      // Next crisis fires in 10-20 in-game days (100-200 real seconds)
+      const nextCrisisAt = now + 100000 + Math.random() * 100000
+      set({ activeCrisis: null, crisisResolution: null, crisisFiresAt: nextCrisisAt, lastTick: now })
+    },
+
+    adoptPolicyStance(issueId: string, stanceId: string) {
+      const state = get()
+      const issue = POLICY_ISSUES.find((i) => i.id === issueId)
+      if (!issue) return
+      if (!state.elections[issue.unlocksAfter]?.won) return
+      if (state.cash < issue.adoptionCost) return
+      if (state.policyStances[issueId] === stanceId) return
+
+      const isSwitching = !!state.policyStances[issueId]
+      const switchCount = state.policyStanceSwitchCounts[issueId] ?? 0
+      // Escalating penalty: 3%, 6%, 10%, 15%, 20% (capped)
+      const SWITCH_PCTS = [0.03, 0.06, 0.10, 0.15, 0.20]
+      const pct = isSwitching ? (SWITCH_PCTS[Math.min(switchCount, SWITCH_PCTS.length - 1)] ?? 0.20) : 0
+      const switchPenalty = Math.floor(state.supporters * pct)
+
+      set((s) => ({
+        cash: s.cash - issue.adoptionCost,
+        supporters: Math.max(0, s.supporters - switchPenalty),
+        policyStances: { ...s.policyStances, [issueId]: stanceId },
+        policyStanceSwitchCounts: isSwitching
+          ? { ...s.policyStanceSwitchCounts, [issueId]: switchCount + 1 }
+          : s.policyStanceSwitchCounts,
+      }))
+    },
+
+    holdRally() {
+      const state = get()
+      if (!state.elections.state_legislature.won) return
+      const now = Date.now()
+      if ((state.abilityCooldowns.rally ?? 0) > now) return
+      const nextElection = getNextElection(state)
+      const threshold = nextElection?.supportersRequired ?? 10000
+      const cost = Math.floor(threshold * 0.025)
+      if (state.cash < cost) return
+      const hit = Math.random() < 0.70
+      const gain = hit ? Math.floor(threshold * 0.06) : 0
+      set((s) => ({
+        cash: s.cash - cost,
+        supporters: s.supporters + gain,
+        totalSupportersEarned: s.totalSupportersEarned + gain,
+        abilityCooldowns: { ...s.abilityCooldowns, rally: now + 60000 },
+        abilityResults: { ...s.abilityResults, rally: hit ? 'hit' : 'miss' },
+        lastAbilityResult: { abilityId: 'rally', supporterDelta: gain, cashDelta: -cost, good: hit },
+      }))
+    },
+
+    issueStatement() {
+      const state = get()
+      if (!state.elections.governor.won) return
+      const now = Date.now()
+      if ((state.abilityCooldowns.statement ?? 0) > now) return
+      const nextElection = getNextElection(state)
+      const threshold = nextElection?.supportersRequired ?? 100000
+      const hit = Math.random() < 0.60
+      if (hit) {
+        const delta = Math.floor(threshold * 0.05)
+        set((s) => {
+          const topIdx = s.competitors.reduce((best, c, i, arr) =>
+            c.supporters > arr[best].supporters ? i : best, 0)
+          return {
+            competitors: s.competitors.map((c, i) =>
+              i === topIdx ? { ...c, supporters: Math.max(0, c.supporters - delta) } : c
+            ),
+            abilityCooldowns: { ...s.abilityCooldowns, statement: now + 90000 },
+            abilityResults: { ...s.abilityResults, statement: 'hit' },
+            lastAbilityResult: { abilityId: 'statement', supporterDelta: -delta, cashDelta: 0, good: true },
+          }
+        })
+      } else {
+        const penalty = Math.floor(threshold * 0.03)
+        set((s) => ({
+          supporters: Math.max(0, s.supporters - penalty),
+          abilityCooldowns: { ...s.abilityCooldowns, statement: now + 90000 },
+          abilityResults: { ...s.abilityResults, statement: 'miss' },
+          lastAbilityResult: { abilityId: 'statement', supporterDelta: -penalty, cashDelta: 0, good: false },
+        }))
+      }
+    },
+
+    nationalFundraiser() {
+      const state = get()
+      if (!state.elections.senate.won) return
+      const now = Date.now()
+      if ((state.abilityCooldowns.natfundraiser ?? 0) > now) return
+      const nextElection = getNextElection(state)
+      const threshold = nextElection?.supportersRequired ?? 1000000
+      const hit = Math.random() < 0.65
+      const cashGain = hit ? Math.floor(threshold * 0.12) : 0
+      set((s) => ({
+        cash: s.cash + cashGain,
+        totalCashEarned: s.totalCashEarned + cashGain,
+        abilityCooldowns: { ...s.abilityCooldowns, natfundraiser: now + 120000 },
+        abilityResults: { ...s.abilityResults, natfundraiser: hit ? 'hit' : 'miss' },
+        lastAbilityResult: { abilityId: 'natfundraiser', supporterDelta: 0, cashDelta: cashGain, good: hit },
+      }))
+    },
+
+    addressNation() {
+      const state = get()
+      if (!state.elections.senate.won) return
+      const now = Date.now()
+      if ((state.abilityCooldowns.address ?? 0) > now) return
+      const nextElection = getNextElection(state)
+      const threshold = nextElection?.supportersRequired ?? 1000000
+      const hit = Math.random() < 0.45
+      const gain = hit ? Math.floor(threshold * 0.15) : 0
+      set((s) => ({
+        supporters: s.supporters + gain,
+        totalSupportersEarned: s.totalSupportersEarned + gain,
+        abilityCooldowns: { ...s.abilityCooldowns, address: now + 300000 },
+        abilityResults: { ...s.abilityResults, address: hit ? 'hit' : 'miss' },
+        lastAbilityResult: { abilityId: 'address', supporterDelta: gain, cashDelta: 0, good: hit },
+      }))
     },
   }
 })

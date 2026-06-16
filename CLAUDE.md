@@ -5,10 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev        # Start dev server at http://localhost:5173
+npm run dev        # Start dev server (URL will be http://localhost:5173/The-Long-Game/)
 npm run build      # TypeScript check + Vite production build
 npm run lint       # ESLint
 npm run preview    # Serve the production build locally
+npm run deploy     # Build + push to GitHub Pages (https://steventhephan.github.io/The-Long-Game/)
 ```
 
 There are no tests. TypeScript strict mode is the primary correctness check — `npm run build` surfaces type errors.
@@ -28,77 +29,80 @@ constants.ts  ──►  types.ts  ──►  upgrades.ts / milestones.ts / char
                  selectors.ts   (pure functions over GameState)
                        │
                        ▼
-                 gameStore.ts   (single Zustand store + setInterval game loop)
+                 gameStore.ts   (single Zustand store + requestAnimationFrame game loop)
                        │
                        ▼
                  persistence.ts (localStorage save/load, number formatting)
 ```
 
-**`types.ts`** — all interfaces: `GameState`, `Building`, `Upgrade`, `UpgradeEffect`, `Election`, `MinigameState`, `Competitor`, `MilestoneState`. `CharismaLevel = 0 | 1 | ... | 9`.
+**`types.ts`** — all interfaces: `GameState`, `Building`, `Upgrade`, `UpgradeEffect`, `Election`, `MinigameState`, `Competitor`, `MilestoneState`. `CharismaLevel = 0 | 1 | ... | 9`. `UpgradeEffect.type` includes `'fundraise_multiplier' | 'court_multiplier' | 'court_chance'`. `GameState` includes `knockBoostSps`, `knockBoostCps`, `lastCourtResult`, `courtCooldownEndsAt`, `awaitingNextElection`, `lastWonTier`.
 
-**`constants.ts`** — initial building/election/minigame data. Key constants: `TICK_RATE_MS = 100`, `BASE_VOLUNTEER_RECRUIT_RATE = 0.02`, `BASE_CASH_DONATION_RATE = 0.02`, `ELECTION_ORDER`.
+**`constants.ts`** — initial building/election/minigame data. Key constants: `TICK_RATE_MS = 100`, `BASE_VOLUNTEER_RECRUIT_RATE = 0.06`, `BASE_CASH_DONATION_RATE = 0.01`, `ELECTION_ORDER`, `ELECTION_DAYS_BY_TIER` (per-tier day counts: city_council=30 up to president=365).
 
-**`upgrades.ts`** — `UPGRADES` record holds `unlockCondition` functions (never serialized). `buildInitialUpgrades()` strips functions to `{ id, name, description, cost, purchased, effect }`. **Critical**: `getAvailableUpgrades` in selectors always looks up `unlockCondition` from the static `UPGRADES` constant, not from stored state.
+**`upgrades.ts`** — `UPGRADES` record holds `unlockCondition` functions (never serialized). `buildInitialUpgrades()` strips functions. **Critical**: `getAvailableUpgrades` in selectors always looks up `unlockCondition` from the static `UPGRADES` constant, not from stored state. Adding new upgrades here is safe — they appear in existing saves automatically.
 
-**`milestones.ts`** — 11 milestone definitions at supporter thresholds (100 → 10M). `buildInitialMilestones()`, `MILESTONES_BY_ID`. Effects apply via `selectors.ts` alongside upgrades.
+**`milestones.ts`** — 11 milestone definitions at supporter thresholds (100 → 10M). Effects apply via `selectors.ts` alongside upgrades.
 
-**`charisma.ts`** — 10-level `CHARISMA_LEVELS` array (Tone-Deaf → Historic). Each level has a `stat` multiplier on `BASE_VOLUNTEER_RECRUIT_RATE` and a `req` object (totalSupporters + minigame completion counts). `canLevelUpCharisma()` checks all req fields. Level stored as `charismaLevel: CharismaLevel` integer in state; never the stat value directly.
+**`charisma.ts`** — 10-level `CHARISMA_LEVELS` array (Tone-Deaf → Historic). Each level has a `stat` multiplier and a `req` object (totalSupporters + minigame completion counts). Charisma is decoupled from elections — levels up via outreach activity completions and supporter counts. Level stored as `charismaLevel: CharismaLevel` integer; never the stat value directly.
 
-**`competitors.ts`** — `generateCompetitors(tier, supportersRequired)` returns `Competitor[]` with random funny names. `COMPETITORS_PER_TIER` maps each election tier to a count (1 for early elections, up to 5 for President). `ELECTION_TOTAL_DAYS = 365`. Competitor `supportersPerSecond` is calibrated so the lead competitor reaches 80% of the threshold by election day.
+**`competitors.ts`** — `generateCompetitors(tier, supportersRequired)` returns `Competitor[]`. Competitors get a head-start fraction by tier (0% city_council → 30% president). Lead competitor is calibrated to reach 80% of threshold by election day.
 
-**`prestige.ts`** — `PrestigeUpgradeDef[]` with carryover/production/click multiplier effects. `getCarryoverRates(purchasedPrestigeUpgrades)` returns base 3% supporters / 5% cash / 5% volunteers plus any purchased bonuses.
+**`prestige.ts`** — `PrestigeUpgradeDef[]` with carryover/production/click multiplier effects. `getCarryoverRates()` returns base 3% supporters / 5% cash / 5% volunteers plus purchased bonuses.
 
-**`selectors.ts`** — pure functions over `GameState`. `productEffects()` and `sumEffects()` iterate both purchased upgrades AND activated milestones. Key exports: `getBuildingCost`, `getBuildingSps`, `getTotalSps`, `getClickSupporters`, `getClickCash`, `getClickSuccessChance`, `getCashPerSecond`, `getVolunteerRecruitRate`, `getCharismaStat`, `getNextElection`, `getHasWonAnyElection`, `getHasWonPresidency`, `getAllMilestonesAnnotated`.
+**`selectors.ts`** — pure functions over `GameState`. `productEffects()` and `sumEffects()` iterate both purchased upgrades AND activated milestones. Includes `getFundraiseMultiplier`, `getCourtMultiplier`, `getCourtChanceBonus`.
 
-**`gameStore.ts`** — single Zustand store. `startGameLoop()`/`stopGameLoop()` manage a `setInterval` outside React. `mergeWithSave()` applies offline progress (capped 8h) on load. Key actions: `knock`, `buyBuilding`, `buyUpgrade`, `buyPrestigeUpgrade`, `activateMilestone`, `levelUpCharisma`, `tick`, `winElection`, `resetElectionAfterDefeat`, `prestige`, `triggerMinigame`, `completeMinigame`, `hardReset`.
+**`gameStore.ts`** — single Zustand store. Game loop uses `requestAnimationFrame` (throttled to `TICK_RATE_MS`) not `setInterval`. Module-level `clickBuffer` array tracks recent clicks for live SPS display (3-second rolling window). Key actions: `knock`, `fundraise`, `courtInterestGroups`, `buyBuilding`, `buyUpgrade`, `buyPrestigeUpgrade`, `activateMilestone`, `levelUpCharisma`, `tick`, `winElection`, `startNextElection`, `resetElectionAfterDefeat`, `prestige`, `triggerMinigame`, `completeMinigame`, `cancelMinigame`, `hardReset`.
 
-**`persistence.ts`** — `saveGame()` strips upgrade functions. `loadSave()` migrates old `votes` saves to `supporters` and numeric `charisma` to `charismaLevel: 0`. `formatNumber` (K/M/B), `formatCash` (whole dollars, no decimals), `formatRate`.
+**`persistence.ts`** — `saveGame()` strips upgrade functions. `loadSave()` handles save migration. `formatNumber` (K/M/B), `formatCash` (whole dollars, no decimals), `formatRate`.
 
 ### Currencies & resources
 
-- **Supporters** — primary political resource. Earned by clicking (`knock()`, base 40% success) and passively from buildings. Each successful knock also earns `$2` base cash (`getClickCash`). Formatted K/M/B.
-- **Cash** — spent on buildings and upgrades. Passive rate = `supporters × BASE_CASH_DONATION_RATE × multipliers`. Also earned per click. Formatted as whole dollar amounts only.
-- **Charisma** — 10 named levels (not spendable). Drives volunteer auto-recruitment: `charismaLevel.stat × BASE_VOLUNTEER_RECRUIT_RATE` per second. Levels up by meeting supporter + minigame completion thresholds.
+- **Supporters** — primary resource. Earned by clicking (`knock()`, base 25% success) and passively from buildings. Formatted K/M/B.
+- **Cash** — spent on buildings and upgrades. Passive rate = `supporters × BASE_CASH_DONATION_RATE × multipliers`. Also earned per successful knock. Formatted as whole dollar amounts only.
+- **Charisma** — 10 named levels (not spendable). Drives volunteer auto-recruitment. Levels up via supporter thresholds + minigame completions.
 
-All buildings cost cash. Volunteers have `autoRecruit: true` and grow passively; all others are purchased.
+All buildings cost cash. Volunteers have `autoRecruit: true` and grow passively via charisma rate; all others are purchased.
 
 ### Core game loop
 
-`App.tsx` → `startGameLoop()` → `setInterval` at 100ms → `store.tick()`. Each tick:
+`App.tsx` → `startGameLoop()` → `requestAnimationFrame` throttled to 100ms → `store.tick()`. Each tick:
 1. Adds `sps × delta` supporters and `cps × delta` cash
-2. Rolls for volunteer recruitment (`recruitRate × delta` chance)
-3. Advances election timer: `electionDayFraction += delta / 10`; when fraction ≥ 1, `electionDaysRemaining--`
-4. Advances all competitor supporter counts by `supportersPerSecond × delta`
-5. Unlocks minigames based on elections won
-6. Auto-wins election if `daysRemaining ≤ 0` and player has enough supporters
-7. Auto-saves every 30s
+2. Computes `knockBoostSps`/`knockBoostCps` from 3-second rolling `clickBuffer`
+3. Rolls for volunteer recruitment
+4. Advances election timer (`ELECTION_DAYS_BY_TIER` determines total days per tier)
+5. Advances competitor supporter counts
+6. Unlocks minigames based on elections won
+7. Auto-wins election when supporters ≥ required (sets `awaitingNextElection = true`, pauses tick)
+8. Auto-saves every 30s
 
 Defeat: detected in `KnockPanel` via `useEffect` watching `electionDaysRemaining ≤ 0 && supporters < required`. Calls `resetElectionAfterDefeat()` (−30% supporters, timer/competitors reset).
 
 ### Election & prestige flow
 
-**Elections:** City Council (500) → Mayor (10K) → State Legislature (100K) → Governor (1M) → Senate (25M) → President (270M)
+**Elections:** City Council (500) → Mayoral (10K) → State Legislature (100K) → Gubernatorial (1M) → U.S. Senate (80M) → Presidential (800M)
 
-Each election lasts 365 in-game days (1 day = 10 real seconds ≈ 1 hour per election). `winElection()` resets the timer and generates new competitors for the next tier. **Prestige is only available after winning the Presidency** (`getHasWonPresidency`).
+Election length varies by tier (30 days for city council, 365 for senate/president). `winElection()` sets `awaitingNextElection = true`; player manually triggers `startNextElection()`. **Prestige is only available after winning the Presidency.**
 
-**Minigames** unlock after winning elections: TV Ad (city council) → Debate (mayor) → Stump Speech (state legislature) → Fundraiser (governor). After prestige, previously unlocked minigames are re-unlocked immediately (tracked via `minigame.unlocked` carried over in `prestige()`).
+**Minigames** unlock after winning elections: TV Ad (city council) → Debate (mayor) → Stump Speech (state legislature) → Fundraiser (governor). `cancelMinigame(id)` closes without setting a cooldown.
+
+**KnockPanel buttons:** Knock (always) → + Fundraise (after city council) → + Court Interest Group (after mayor). All three are equal width when all present.
 
 ### UI layer (`src/components/`)
 
-Mobile-first, `h-dvh`, sticky header + `StatsBar` + scrollable main + sticky `TabBar`.
+**Responsive layout** — mobile uses full-width single column with bottom `TabBar`; desktop (`lg:`) uses two-column: left (fixed 384px) = StatsBar + KnockPanel, right (flex-1) = Upgrades/Staff/Outreach tabs.
 
-**Bottom tabs:** Campaign (`KnockPanel`) / Rewards (`UpgradesPanel`) / Staff (`BuildingsPanel`) / Outreach (`MinigamesPanel`)
+**Critical**: Never define component functions inside other component functions. The game store re-renders at 100ms — inner function components get a new type identity every tick, causing React to unmount/remount them and reset all `useState`.
 
-**`KnockPanel`** — knock button with click animation (floating `+N supporters / +$X` particles), election countdown timer, live candidate leaderboard, charisma level-up card, prestige section (post-Presidency only), defeat modal.
+**`Layout.tsx`** — handles both mobile and desktop layouts. Tracks `seenIds` and `seenStaffIds` refs for badge logic. Badge is gray when upgrades are unlocked but unaffordable; yellow when any unseen upgrade is affordable or any milestone is pending.
 
-**`UpgradesPanel`** — inner tabs: Upgrades (sorted cheapest-first, available above owned) / Milestones (activated → pending → locked) / Prestige (shown after first prestige). Badge counts on inner tabs.
+**`UpgradesPanel`** — inner tabs: Upgrades / Milestones / Prestige. Uses `h-full flex flex-col` with `flex-shrink-0` inner tab bar and `flex-1 overflow-y-auto` content — do not use `sticky` positioning inside scroll containers.
 
-**`StatsBar`** — always-visible strip between header and content: supporters + rate | cash + rate | volunteers + rate.
+**`StatsBar`** — supporters + rate | cash + rate | volunteers + rate. Rate display turns green and adds click contribution while player is actively knocking (`knockBoostSps > 0`).
 
-**`UnlockToast`** — watches for first-time unlocks of buildings, upgrades, and minigames; shows a dark slide-in toast from the bottom. Uses a `useRef<Set<string>>` to track which items have already been announced.
+**`UnlockToast`** — slide-in toast for first-time building/upgrade/minigame unlocks. Uses `useRef<Set<string>>` to track announced items.
 
-**Minigames** — all use `useMemo(() => snapshot, [])` to freeze resource amounts at open time; no live-updating numbers in option descriptions. Each has meaningful positive/negative tradeoffs.
+**Minigames** — all use `useMemo(() => snapshot, [])` to freeze resource amounts at open time.
 
 ### Save/load
 
-Key: `the-long-game-save`. Upgrade `unlockCondition` functions are stripped on save. `competitors` array (with names + supporter counts) is preserved. Adding new upgrades to `upgrades.ts` is safe — they appear in existing saves automatically.
+Key: `the-long-game-save`. Upgrade `unlockCondition` functions are stripped on save. `competitors` array is preserved across saves.

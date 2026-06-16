@@ -79,6 +79,11 @@ export function FundraiserMinigame({ onClose, onCancel }: Props) {
     [] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
+  const activeStrategies = useMemo(
+    () => [...STRATEGIES].sort(() => Math.random() - 0.5).slice(0, 3),
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
   const [chosen, setChosen] = useState<DonorStrategy | null>(null)
 
   function handleChoose(s: DonorStrategy) {
@@ -156,7 +161,7 @@ export function FundraiserMinigame({ onClose, onCancel }: Props) {
           {onCancel && <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-xl leading-none ml-2">✕</button>}
         </div>
         <div className="space-y-3">
-          {STRATEGIES.map((strat) => {
+          {activeStrategies.map((strat) => {
             const cashGain = strat.cashGain(snap)
             const sDelta = strat.supporterDelta(snap)
             const vDelta = strat.volunteerDelta ?? 0

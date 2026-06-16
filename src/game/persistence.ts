@@ -57,8 +57,9 @@ export function formatNumber(n: number): string {
 export function formatCash(n: number): string {
   const sign = n < 0 ? '-' : ''
   const abs = Math.abs(n)
-  if (abs >= 1_000_000) return `${sign}$${Math.round(abs / 1_000_000)}M`
-  if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}K`
+  if (abs >= 1_000_000_000) return `${sign}$${(abs / 1_000_000_000).toFixed(2)}B`
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(2)}K`
   return `${sign}$${Math.round(abs).toLocaleString()}`
 }
 
@@ -71,6 +72,7 @@ export function formatRate(n: number): string {
 export function formatCashRate(n: number): string {
   const sign = n < 0 ? '-' : ''
   const abs = Math.abs(n)
+  if (abs >= 1_000_000_000) return `${sign}$${Math.round(abs / 1_000_000_000)}B`
   if (abs >= 1_000_000) return `${sign}$${Math.round(abs / 1_000_000)}M`
   if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}K`
   if (abs >= 1) return `${sign}$${Math.round(abs)}`

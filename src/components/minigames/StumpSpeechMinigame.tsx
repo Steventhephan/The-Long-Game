@@ -58,10 +58,9 @@ const TOPICS: Topic[] = [
     emoji: '👮',
     pitch: 'Community safety, accountability, and tough-on-crime credibility.',
     positive: 'Wins over moderates and independents. PAC money flows in.',
-    negative: 'Progressive supporters disengage. Some volunteers quietly leave.',
-    supporterGain: (s) => Math.floor(s.supporters * 0.16),
+    negative: 'Progressive grassroots disengage. Fewer new supporters overall.',
+    supporterGain: (s) => Math.floor(s.supporters * 0.10),
     cashDelta: (s) => s.cash * 0.12,
-    volunteerDelta: -3,
   },
 ]
 
@@ -74,6 +73,11 @@ export function StumpSpeechMinigame({ onClose, onCancel }: Props) {
 
   const snap = useMemo<Snapshot>(
     () => ({ supporters: storeSupport, cash: storeCash }),
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
+  const activeTopics = useMemo(
+    () => [...TOPICS].sort(() => Math.random() - 0.5).slice(0, 3),
     [] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
@@ -119,14 +123,10 @@ export function StumpSpeechMinigame({ onClose, onCancel }: Props) {
                 </div>
               </div>
             )}
-            {vDelta !== 0 && (
-              <div className={`border rounded-xl p-3 ${vDelta > 0 ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'}`}>
-                <div className={`text-lg font-bold ${vDelta > 0 ? 'text-orange-700' : 'text-red-700'}`}>
-                  {vDelta > 0 ? '+' : ''}{vDelta} volunteers
-                </div>
-                <div className={`text-xs ${vDelta > 0 ? 'text-orange-600' : 'text-red-600'}`}>
-                  {vDelta > 0 ? 'energized grassroots' : 'some volunteers step back'}
-                </div>
+            {vDelta > 0 && (
+              <div className="border rounded-xl p-3 bg-orange-50 border-orange-200">
+                <div className="text-lg font-bold text-orange-700">+{vDelta} volunteers</div>
+                <div className="text-xs text-orange-600">energized grassroots</div>
               </div>
             )}
           </div>
@@ -150,7 +150,7 @@ export function StumpSpeechMinigame({ onClose, onCancel }: Props) {
           <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-xl leading-none ml-2">✕</button>
         </div>
         <div className="space-y-3">
-          {TOPICS.map((topic) => {
+          {activeTopics.map((topic) => {
             const sGain = topic.supporterGain(snap)
             const cDelta = topic.cashDelta(snap)
             const vDelta = topic.volunteerDelta ?? 0
@@ -172,10 +172,8 @@ export function StumpSpeechMinigame({ onClose, onCancel }: Props) {
                   </div>
                   <div className="text-xs text-red-600">
                     ✗ {topic.negative}
-                    {(cDelta < 0 || vDelta < 0) && (
-                      <span className="ml-1 font-semibold">
-                        ({[cDelta < 0 ? formatCash(cDelta) + ' cash' : '', vDelta < 0 ? `${vDelta} volunteers` : ''].filter(Boolean).join(', ')})
-                      </span>
+                    {cDelta < 0 && (
+                      <span className="ml-1 font-semibold">({formatCash(cDelta)} cash)</span>
                     )}
                   </div>
                 </div>

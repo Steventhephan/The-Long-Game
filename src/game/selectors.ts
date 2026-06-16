@@ -8,6 +8,8 @@ import {
   getPrestigeCashRateMult,
   getPrestigeClickMult,
 } from './prestige'
+import { getPolicyStanceDef, isPolicyStanceConflicted } from './policy'
+import { getIdeology } from './ideology'
 
 function productEffects(
   state: GameState,
@@ -28,6 +30,23 @@ function productEffects(
       if (v !== null) product *= v
     }
   }
+  for (const [issueId, stanceId] of Object.entries(state.policyStances)) {
+    if (!stanceId) continue
+    if (isPolicyStanceConflicted(state.policyStances, issueId, stanceId)) continue
+    const stance = getPolicyStanceDef(issueId, stanceId)
+    if (!stance) continue
+    for (const eff of stance.effects) {
+      const v = match(eff)
+      if (v !== null) product *= v
+    }
+  }
+  const ideologyResult = getIdeology(state.policyStances)
+  if (ideologyResult) {
+    for (const eff of ideologyResult.ideology.effects) {
+      const v = match(eff)
+      if (v !== null) product *= v
+    }
+  }
   return product
 }
 
@@ -44,12 +63,31 @@ function sumEffects(
     const def = MILESTONES_BY_ID[ms.id]
     if (def) total += match(def.effect)
   }
+  for (const [issueId, stanceId] of Object.entries(state.policyStances)) {
+    if (!stanceId) continue
+    if (isPolicyStanceConflicted(state.policyStances, issueId, stanceId)) continue
+    const stance = getPolicyStanceDef(issueId, stanceId)
+    if (!stance) continue
+    for (const eff of stance.effects) {
+      total += match(eff)
+    }
+  }
+  const ideologyResult = getIdeology(state.policyStances)
+  if (ideologyResult) {
+    for (const eff of ideologyResult.ideology.effects) {
+      total += match(eff)
+    }
+  }
   return total
 }
 
 export function getBuildingCost(state: GameState, id: BuildingId): number {
   const b = state.buildings[id]
   return Math.floor(b.baseCost * Math.pow(b.costScaling, b.count))
+}
+
+export function getVolunteerProductionMult(state: GameState): number {
+  return 1 + state.buildings.volunteer.count * 0.005
 }
 
 export function getBuildingSps(state: GameState, id: BuildingId): number {
@@ -62,7 +100,8 @@ export function getBuildingSps(state: GameState, id: BuildingId): number {
     e.type === 'all_production' ? e.value : null
   )
   const prestigeMult = getPrestigeProductionMult(state.purchasedPrestigeUpgrades)
-  return b.baseSupportersPerSecond * b.count * buildingMult * globalMult * prestigeMult
+  const volunteerMult = id === 'volunteer' ? 1 : getVolunteerProductionMult(state)
+  return b.baseSupportersPerSecond * b.count * buildingMult * globalMult * prestigeMult * volunteerMult
 }
 
 export function getTotalSps(state: GameState): number {
@@ -116,6 +155,11 @@ export function getCashPerSecond(state: GameState): number {
 
 export function getFundraiseMultiplier(state: GameState): number {
   return productEffects(state, (e) => e.type === 'fundraise_multiplier' ? e.value : null)
+}
+
+export function getFundraiseChance(state: GameState): number {
+  const bonus = sumEffects(state, (e) => e.type === 'fundraise_chance' ? e.value : 0)
+  return Math.min(1, 0.5 + bonus)
 }
 
 export function getCourtMultiplier(state: GameState): number {

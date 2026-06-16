@@ -135,9 +135,9 @@ export function getCarryoverRates(purchasedPrestigeUpgrades: Record<string, bool
   cash: number
   volunteers: number
 } {
-  let supporters = 0.03  // base 3% — intentionally low so you can't immediately re-win elections
-  let cash = 0.05
-  let volunteers = 0.05
+  let supporters = 0
+  let cash = 0
+  let volunteers = 0
 
   for (const [id, purchased] of Object.entries(purchasedPrestigeUpgrades)) {
     if (!purchased) continue
