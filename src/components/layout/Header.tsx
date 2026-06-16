@@ -1,13 +1,11 @@
 import { useState, useRef } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { ELECTION_ORDER } from '../../game/constants'
-import type { ElectionTier } from '../../game/types'
 
 export function Header() {
   const elections = useGameStore((s) => s.elections)
   const saveNow = useGameStore((s) => s.saveNow)
   const hardReset = useGameStore((s) => s.hardReset)
-  const devSkipToTier = useGameStore((s) => s.devSkipToTier)
   const [confirming, setConfirming] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
   const [loadConfirming, setLoadConfirming] = useState(false)
@@ -62,16 +60,6 @@ export function Header() {
           >
             {loadConfirming ? 'Are you sure?' : 'Load'}
           </button>
-          <select
-            onChange={(e) => { if (e.target.value) { devSkipToTier(e.target.value as ElectionTier); e.target.value = '' } }}
-            defaultValue=""
-            className="text-xs bg-yellow-500 text-black px-2 py-1 rounded cursor-pointer"
-          >
-            <option value="" disabled>⚡ Skip to…</option>
-            {ELECTION_ORDER.map((tier) => (
-              <option key={tier} value={tier}>{tier.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
           <button
             onClick={() => setConfirming(true)}
             className="text-xs bg-red-700 hover:bg-red-600 px-2 py-1 rounded"
