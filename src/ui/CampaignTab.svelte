@@ -3,6 +3,7 @@
   import { knockDoors, computeStack, computeUpgradeEffects } from '../sim/election';
   import { GENERATORS } from '../config/generators';
   import { BAL, PHASE1 } from '../config/balance';
+  import { blocsUnlockedForOffice } from '../config/blocs';
   import { clearSave, saveGame } from '../persist/autosave';
   import { defaultState } from '../state/gameState';
 
@@ -137,12 +138,13 @@
   <!-- Bloc breakdown -->
   <div class="blocs-section">
     <div class="section-label">Blocs</div>
-    {#each state.blocs as bloc}
-      {@const pool = bloc.totalVoters}
-      {@const playerShare = pool > 0 ? bloc.player / pool : 0}
-      {@const rivalShare = pool > 0 ? (bloc.rivals[0] ?? 0) / pool : 0}
+    {#each blocsUnlockedForOffice(state.officeIndex) as group}
+      {@const bloc = state.blocs.find(b => b.groupId === group.groupId)}
+      {@const pool = bloc?.totalVoters ?? 0}
+      {@const playerShare = pool > 0 ? (bloc?.player ?? 0) / pool : 0}
+      {@const rivalShare = pool > 0 ? ((bloc?.rivals[0] ?? 0)) / pool : 0}
       <div class="bloc-row">
-        <span class="bloc-name">{bloc.groupId.replace(/_/g, ' ')}</span>
+        <span class="bloc-name" title={group.name}>{group.shortName}</span>
         <div class="bloc-bar">
           <div class="bloc-fill you" style="width:{playerShare*100}%"></div>
           <div class="bloc-fill rival" style="width:{rivalShare*100}%"></div>
@@ -155,8 +157,8 @@
 
 <style>
   .campaign-tab {
-    flex: 1;
-    min-height: 0;
+    position: absolute;
+    inset: 0;
     overflow-y: auto;
     padding: 16px 14px;
     display: flex;
@@ -248,7 +250,17 @@
     color: #c8a44a; border-top: 1px solid #2a2a3e; padding-top: 4px;
   }
   .bloc-row { display: flex; align-items: center; gap: 6px; }
-  .bloc-name { font-size: 0.68rem; color: #aaa; min-width: 90px; text-transform: capitalize; }
+  .bloc-name {
+    font-size: 0.68rem;
+    color: #aaa;
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
   .bloc-bar { flex: 1; height: 8px; background: #3a3a5a; border-radius: 4px; overflow: hidden; position: relative; }
   .bloc-fill { position: absolute; top: 0; height: 100%; transition: width 0.2s; border-radius: 4px; }
   .bloc-fill.you   { left: 0;  background: #4a9eff; }

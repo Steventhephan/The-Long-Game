@@ -1,7 +1,7 @@
 <script lang="ts">
   import { gameStore, formatNum } from '../state/store';
   import { saveGame } from '../persist/autosave';
-  import { INTEREST_GROUPS } from '../config/blocs';
+  import { INTEREST_GROUPS, blocsUnlockedForOffice } from '../config/blocs';
   import { IDEOLOGIES } from '../config/ideologies';
   import { issuesForEra } from '../config/issues';
   import { applyStanceChange, computePosition, flipFlopCost, eraForOffice, getIdeology } from '../sim/platform';
@@ -9,6 +9,7 @@
   $: state = $gameStore;
   $: era = eraForOffice(state.officeIndex);
   $: unlockedIssues = issuesForEra(era);
+  $: unlockedBlocs = blocsUnlockedForOffice(state.officeIndex);
   $: position = computePosition(state.platform, era);
   $: ideology = getIdeology(position);
 
@@ -126,12 +127,12 @@
   <!-- Bloc support -->
   <div class="blocs-section">
     <div class="section-label">Coalition Support</div>
-    {#each INTEREST_GROUPS as group}
+    {#each unlockedBlocs as group}
       {@const support = state.blocSupport[group.groupId] ?? 1.0}
       {@const pct = supportPct(support)}
       {@const color = blocLeanColor(group.lean)}
       <div class="bloc-row">
-        <span class="bloc-name">{group.name}</span>
+        <span class="bloc-name" title={group.name}>{group.shortName}</span>
         <div class="support-bar-wrap">
           <div class="support-bar">
             <div class="support-fill" style="width:{pct}%; background:{color}"></div>
@@ -165,8 +166,8 @@
 
 <style>
   .platform-tab {
-    flex: 1;
-    min-height: 0;
+    position: absolute;
+    inset: 0;
     overflow-y: auto;
     padding: 12px 14px;
     display: flex;
@@ -261,7 +262,17 @@
   /* Bloc support */
   .blocs-section { display: flex; flex-direction: column; gap: 5px; }
   .bloc-row { display: flex; align-items: center; gap: 6px; }
-  .bloc-name { font-size: 0.65rem; color: #aaa; min-width: 120px; }
+  .bloc-name {
+    font-size: 0.65rem;
+    color: #aaa;
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
   .support-bar-wrap { flex: 1; }
   .support-bar {
     position: relative;

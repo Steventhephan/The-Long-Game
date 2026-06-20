@@ -63,10 +63,9 @@
 
   .tab-content {
     flex: 1;
-    min-height: 0; /* required: prevents flex children from expanding beyond the shell */
+    min-height: 0;
+    position: relative; /* each tab is absolutely positioned to the same rectangle */
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
   .tab-bar {

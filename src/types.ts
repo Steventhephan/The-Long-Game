@@ -131,10 +131,12 @@ export interface GeneratorDef {
 export interface InterestGroupDef {
   groupId: string;
   name: string;
+  shortName: string;              // compact display name for narrow layouts
   lean: number;                   // -1 (far left) to +1 (far right)
   priorityIssues: IssuePriority[]; // issues this group cares about most
   primaryWeight: number;          // relative pool share in primaries
   generalWeight: number;          // relative pool share in generals
+  unlockOfficeIndex: number;      // first office where this bloc is revealed in the UI
 }
 
 // Keep BlocStaticDef as alias so sim/election.ts signature stays backward-compatible.
