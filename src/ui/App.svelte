@@ -8,8 +8,8 @@
   type Tab = 'campaign' | 'operation';
   let activeTab: Tab = 'campaign';
 
-  // Operation unlocks once the player has purchased any generator.
-  $: operationUnlocked = Object.values($gameStore.generators).some(v => v > 0);
+  // Operation is always available — generators moved here from Campaign tab.
+  const operationUnlocked = true;
 </script>
 
 <div class="app-shell">
