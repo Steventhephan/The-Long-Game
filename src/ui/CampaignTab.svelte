@@ -8,11 +8,12 @@
 
   $: state = $gameStore;
 
-  // Knock button
-  let critFlash = false;
-  let knockFeedback = '';
-  let feedbackKey = 0; // increments each tap to force animation reset
-  let feedbackTimeout: ReturnType<typeof setTimeout> | null = null;
+  // Knock button — each tap spawns an independent floater
+  interface Floater { id: number; text: string; isCrit: boolean; dx: number; }
+  let floaters: Floater[] = [];
+  let nextFloaterId = 0;
+  let critFlash = false; // keeps button glow while any recent crit is active
+  let critGlowTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function onKnock() {
     const prev = state.voters;
@@ -21,15 +22,24 @@
     saveGame(newState);
 
     const gained = Math.round(newState.voters - prev);
-    critFlash = newState.lastCritHit;
-    knockFeedback = newState.lastCritHit ? `★ CRIT! +${gained} ★` : `+${gained}`;
-    feedbackKey += 1;
+    const isCrit = newState.lastCritHit;
+    const spread = isCrit ? 80 : 54;
+    const dx = (Math.random() - 0.5) * spread;
+    const id = nextFloaterId++;
 
-    if (feedbackTimeout) clearTimeout(feedbackTimeout);
-    const duration = newState.lastCritHit ? 1200 : 700;
-    feedbackTimeout = setTimeout(() => { knockFeedback = ''; critFlash = false; }, duration);
+    floaters = [...floaters, { id, text: isCrit ? `★ CRIT! +${gained} ★` : `+${gained}`, isCrit, dx }];
 
-    if ('vibrate' in navigator) navigator.vibrate(newState.lastCritHit ? [30, 10, 30] : 15);
+    const duration = isCrit ? 1200 : 750;
+    setTimeout(() => { floaters = floaters.filter(f => f.id !== id); }, duration);
+
+    // Button glow follows the most recent crit
+    if (isCrit) {
+      critFlash = true;
+      if (critGlowTimeout) clearTimeout(critGlowTimeout);
+      critGlowTimeout = setTimeout(() => { critFlash = false; }, 600);
+    }
+
+    if ('vibrate' in navigator) navigator.vibrate(isCrit ? [30, 10, 30] : 15);
   }
 
   // Generators available at this office
@@ -76,11 +86,13 @@
 <div class="campaign-tab">
   <!-- Knock button -->
   <div class="knock-section">
-    {#if knockFeedback}
-      {#key feedbackKey}
-        <div class="knock-feedback" class:crit={critFlash}>{knockFeedback}</div>
-      {/key}
-    {/if}
+    {#each floaters as floater (floater.id)}
+      <div
+        class="knock-feedback"
+        class:crit={floater.isCrit}
+        style="--dx: {floater.dx}px"
+      >{floater.text}</div>
+    {/each}
     <button
       class="knock-btn"
       class:crit={critFlash}
@@ -203,34 +215,33 @@
   }
   .knock-feedback {
     position: absolute;
-    /* Sits near the top of the 160px button, floats upward through it.
-       Positive top keeps it inside .campaign-tab's overflow-y container. */
-    top: 55px;
+    top: 50px;
     left: 50%;
-    transform: translateX(-50%);
     z-index: 5;
-    font-size: 1.05rem;
+    font-size: 1.4rem;
     font-weight: bold;
     color: #4a9eff;
+    -webkit-text-stroke: 1.5px #000;
     pointer-events: none;
     white-space: nowrap;
-    animation: float-up 0.7s ease-out forwards;
+    animation: float-up 0.75s ease-out forwards;
   }
   .knock-feedback.crit {
     color: #f1c40f;
-    font-size: 1.45rem;
-    text-shadow: 0 0 12px rgba(241, 196, 15, 0.8);
+    font-size: 1.85rem;
+    -webkit-text-stroke: 2px #000;
+    text-shadow: 0 0 14px rgba(241, 196, 15, 0.7);
     animation: crit-float 1.2s ease-out forwards;
   }
-  /* translateX(-50%) must be included in every keyframe since it's on the element */
+  /* --dx drives the horizontal drift; translateX(-50%) centres the origin */
   @keyframes float-up {
-    from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-    to   { opacity: 0; transform: translateX(-50%) translateY(-44px) scale(0.85); }
+    from { opacity: 1; transform: translateX(calc(-50% + 0px))       translateY(0)    scale(1); }
+    to   { opacity: 0; transform: translateX(calc(-50% + var(--dx))) translateY(-48px) scale(0.8); }
   }
   @keyframes crit-float {
-    0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.1); }
-    15%  { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.25); }
-    100% { opacity: 0; transform: translateX(-50%) translateY(-44px) scale(0.9); }
+    0%   { opacity: 1; transform: translateX(calc(-50% + 0px))                       translateY(0)     scale(1.1); }
+    18%  { opacity: 1; transform: translateX(calc(-50% + calc(var(--dx) * 0.25)))    translateY(-12px) scale(1.3); }
+    100% { opacity: 0; transform: translateX(calc(-50% + var(--dx)))                 translateY(-52px) scale(0.85); }
   }
 
   .knock-btn {
