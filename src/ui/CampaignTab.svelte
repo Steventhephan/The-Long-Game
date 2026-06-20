@@ -101,9 +101,9 @@
       aria-label="Knock on Doors"
     >
       <span class="knock-icon">🚪</span>
-      <span class="knock-label">Knock on Doors</span>
+      <span class="knock-label">KNOCK</span>
+      <span class="knock-crit-hint">5% crit</span>
     </button>
-    <p class="knock-hint">5% chance of a ×5 crit</p>
   </div>
 
   <!-- Generators -->
@@ -264,8 +264,8 @@
   }
   .knock-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .knock-icon { font-size: 2.5rem; line-height: 1; }
-  .knock-label { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; }
-  .knock-hint { font-size: 0.65rem; color: #888; }
+  .knock-label { font-size: 0.85rem; letter-spacing: 0.12em; }
+  .knock-crit-hint { font-size: 0.6rem; color: #888; letter-spacing: 0.05em; }
 
   /* Generators */
   .generators-section { display: flex; flex-direction: column; gap: 8px; }
