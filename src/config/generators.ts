@@ -1,73 +1,182 @@
 import type { GeneratorDef } from '../types';
 import { BAL } from './balance';
 
-// Full 8-rung ladders authored in Generators.md; Phase 1 exposes rungs 0 only.
-// Costs and outputs are TUNING TARGETs beyond the 1.15× growth rate (spec-locked).
+// Base costs and outputs follow the spec formulas (all TUNING TARGETs):
+//   baseCost(rung k)   = BASE_COST_0  × 8^k
+//   baseOutput(rung k) = BASE_OUTPUT_0 × 7^k
+// baseCost0 = 75 (tuned for ~4 taps/sec human — see Phase 1 Build Log).
+// baseOutput0 = 2.0 (voters/sec for Field, cash/sec for Finance).
+
+const BASE_COST_0 = 75;
+const BASE_OUT_0  = 2.0;
+
+function cost(rung: number)   { return Math.round(BASE_COST_0 * 8 ** rung); }
+function output(rung: number) { return parseFloat((BASE_OUT_0 * 7 ** rung).toPrecision(4)); }
+
+const OFFICE_IDS = [
+  'city_council', 'mayor', 'county_council', 'county_executive',
+  'state_legislature', 'governor', 'senate', 'president',
+];
 
 export const GENERATORS: GeneratorDef[] = [
-  // ── Field track (voters/sec) ──────────────────────────────────────────────
+  // ── Field track — voters/sec ──────────────────────────────────────────────
   {
     id: 'canvasser',
     name: 'Canvasser',
-    track: 'field',
-    rung: 0,
-    baseCost: 75,          // TUNING TARGET: ~10 taps to afford first unit
-    baseOutput: 2.0,       // voters/sec per owned — TUNING TARGET: 3 units = +6/s tiebreaker
-    unlockOffice: 'city_council',
+    track: 'field', rung: 0,
+    baseCost: cost(0), baseOutput: output(0),
+    unlockOffice: OFFICE_IDS[0],
     flavor: 'Going door to door, one conversation at a time.',
   },
   {
     id: 'phone_bank',
     name: 'Phone Bank',
-    track: 'field',
-    rung: 1,
-    baseCost: 80,          // TUNING TARGET (baseCost[0] × rungCostMultiplier)
-    baseOutput: 1.4,       // TUNING TARGET (baseOutput[0] × rungOutputMultiplier)
-    unlockOffice: 'mayor',
+    track: 'field', rung: 1,
+    baseCost: cost(1), baseOutput: output(1),
+    unlockOffice: OFFICE_IDS[1],
     flavor: 'Volunteers on the phones, reaching hundreds a night.',
   },
-  // ── Finance track (cash/sec) ──────────────────────────────────────────────
+  {
+    id: 'regional_office',
+    name: 'Regional Office',
+    track: 'field', rung: 2,
+    baseCost: cost(2), baseOutput: output(2),
+    unlockOffice: OFFICE_IDS[2],
+    flavor: 'A local hub turning neighbors into organizers.',
+  },
+  {
+    id: 'campaign_bus',
+    name: 'Campaign Bus',
+    track: 'field', rung: 3,
+    baseCost: cost(3), baseOutput: output(3),
+    unlockOffice: OFFICE_IDS[3],
+    flavor: 'Rolling through every precinct, sunrise to sundown.',
+  },
+  {
+    id: 'rally_tour',
+    name: 'Rally Tour',
+    track: 'field', rung: 4,
+    baseCost: cost(4), baseOutput: output(4),
+    unlockOffice: OFFICE_IDS[4],
+    flavor: 'Packed auditoriums converting enthusiasm into votes.',
+  },
+  {
+    id: 'tv_ad_spot',
+    name: 'TV Ad Spot',
+    track: 'field', rung: 5,
+    baseCost: cost(5), baseOutput: output(5),
+    unlockOffice: OFFICE_IDS[5],
+    flavor: '"Paid for by the Committee to Elect…"',
+  },
+  {
+    id: 'micro_targeting',
+    name: 'Micro-Targeting Data Team',
+    track: 'field', rung: 6,
+    baseCost: cost(6), baseOutput: output(6),
+    unlockOffice: OFFICE_IDS[6],
+    flavor: 'Every ad, every door — precision-matched to the voter.',
+  },
+  {
+    id: 'national_media_team',
+    name: 'National Media Team',
+    track: 'field', rung: 7,
+    baseCost: cost(7), baseOutput: output(7),
+    unlockOffice: OFFICE_IDS[7],
+    flavor: 'The full media apparatus of a presidential campaign.',
+  },
+
+  // ── Finance track — cash/sec ───────────────────────────────────────────────
   {
     id: 'small_dollar_drive',
     name: 'Small-Dollar Drive',
-    track: 'finance',
-    rung: 0,
-    baseCost: 75,          // TUNING TARGET: same gate as Canvasser
-    baseOutput: 2.0,       // cash/sec per owned — TUNING TARGET: funds field purchases
-    unlockOffice: 'city_council',
+    track: 'finance', rung: 0,
+    baseCost: cost(0), baseOutput: output(0),
+    unlockOffice: OFFICE_IDS[0],
     flavor: '$5 here, $10 there — it adds up.',
   },
   {
     id: 'email_fundraising',
     name: 'Email Fundraising List',
-    track: 'finance',
-    rung: 1,
-    baseCost: 80,          // TUNING TARGET
-    baseOutput: 3.5,       // TUNING TARGET
-    unlockOffice: 'mayor',
+    track: 'finance', rung: 1,
+    baseCost: cost(1), baseOutput: output(1),
+    unlockOffice: OFFICE_IDS[1],
     flavor: '"Friend, I\'ll be honest with you…"',
+  },
+  {
+    id: 'donor_dinner',
+    name: 'Donor Dinner',
+    track: 'finance', rung: 2,
+    baseCost: cost(2), baseOutput: output(2),
+    unlockOffice: OFFICE_IDS[2],
+    flavor: 'Rubber chicken, real checks.',
+  },
+  {
+    id: 'bundler_network',
+    name: 'Bundler Network',
+    track: 'finance', rung: 3,
+    baseCost: cost(3), baseOutput: output(3),
+    unlockOffice: OFFICE_IDS[3],
+    flavor: 'Each bundler brings a rolodex of max-donors.',
+  },
+  {
+    id: 'national_fundraising',
+    name: 'National Fundraising Committee',
+    track: 'finance', rung: 4,
+    baseCost: cost(4), baseOutput: output(4),
+    unlockOffice: OFFICE_IDS[4],
+    flavor: 'A coordinated machine working every time zone.',
+  },
+  {
+    id: 'corporate_sponsorships',
+    name: 'Corporate Sponsorships',
+    track: 'finance', rung: 5,
+    baseCost: cost(5), baseOutput: output(5),
+    unlockOffice: OFFICE_IDS[5],
+    flavor: 'Logos on the podium, checks in the war chest.',
+  },
+  {
+    id: 'lobbyist_alliance',
+    name: 'Lobbyist Alliance',
+    track: 'finance', rung: 6,
+    baseCost: cost(6), baseOutput: output(6),
+    unlockOffice: OFFICE_IDS[6],
+    flavor: 'K Street knows which way the wind is blowing.',
+  },
+  {
+    id: 'super_pac',
+    name: 'Super PAC',
+    track: 'finance', rung: 7,
+    baseCost: cost(7), baseOutput: output(7),
+    unlockOffice: OFFICE_IDS[7],
+    flavor: 'Technically independent. Practically unlimited.',
   },
 ];
 
-/** Cost of the Nth copy (0-indexed owned count before purchase). */
+// Generators whose rung ≤ officeIndex are available at that office.
+export function generatorsForOffice(officeIndex: number): GeneratorDef[] {
+  return GENERATORS.filter(g => g.rung <= officeIndex);
+}
+
+/** Cost of the Nth copy (owned = count before this purchase). */
 export function generatorCost(def: GeneratorDef, owned: number): number {
   return Math.ceil(def.baseCost * BAL.generatorCostGrowth ** owned);
 }
 
-/** Total output per second for owned copies of a generator. */
+/** Total passive output per second for all owned copies. */
 export function generatorOutput(def: GeneratorDef, owned: number): number {
   return def.baseOutput * owned;
 }
 
-/** Largest affordable quantity given current cash. */
+/** Largest quantity affordable given current cash. */
 export function maxAffordable(def: GeneratorDef, owned: number, cash: number): number {
   let qty = 0;
   let remaining = cash;
   while (true) {
-    const cost = generatorCost(def, owned + qty);
-    if (remaining < cost) break;
-    remaining -= cost;
+    const c = generatorCost(def, owned + qty);
+    if (remaining < c) break;
+    remaining -= c;
     qty++;
+    if (qty > 10_000) break; // safety cap
   }
   return qty;
 }
@@ -75,9 +184,7 @@ export function maxAffordable(def: GeneratorDef, owned: number, cash: number): n
 /** Total cost to buy `qty` copies starting from `owned`. */
 export function bulkCost(def: GeneratorDef, owned: number, qty: number): number {
   let total = 0;
-  for (let i = 0; i < qty; i++) {
-    total += generatorCost(def, owned + i);
-  }
+  for (let i = 0; i < qty; i++) total += generatorCost(def, owned + i);
   return total;
 }
 

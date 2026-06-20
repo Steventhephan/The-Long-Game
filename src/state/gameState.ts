@@ -2,11 +2,22 @@ import type { GameState } from '../types';
 import { CITY_COUNCIL_BLOCS } from '../config/blocs';
 import { CITY_COUNCIL_RIVALS } from '../config/rivals';
 import { BAL } from '../config/balance';
+import { getOffice, MAX_OFFICE_INDEX } from '../config/offices';
 import { initElection } from '../sim/election';
 
 export const SAVE_VERSION = 1;
 
+// Phase 2: all offices use the same 2 blocs. Phase 3 will introduce per-office bloc sets.
+function blocsForOffice(_officeIndex: number) {
+  return CITY_COUNCIL_BLOCS;
+}
+
+function rivalsForOffice(_officeIndex: number) {
+  return CITY_COUNCIL_RIVALS;
+}
+
 function freshRunState(): GameState {
+  const office = getOffice(0);
   const skeleton: GameState = {
     version: SAVE_VERSION,
     rngSeed: (Date.now() & 0x7fffffff),
@@ -22,8 +33,9 @@ function freshRunState(): GameState {
       CITY_COUNCIL_BLOCS.map(b => [b.groupId, 1.0])
     ),
     officeIndex: 0,
+    rivalRate: office.rivalRate,
     phase: 'primary',
-    timerRemaining: BAL.generalTimerBase * BAL.primaryTimerRatio, // 54s
+    timerRemaining: BAL.generalTimerBase * BAL.primaryTimerRatio,
     isRunoff: false,
     blocs: [],
     rivals: [],
@@ -37,7 +49,11 @@ function freshRunState(): GameState {
     electionResult: 'none',
   };
 
-  return initElection(skeleton, 0, 'primary', CITY_COUNCIL_BLOCS, CITY_COUNCIL_RIVALS);
+  return initElection(
+    skeleton, 0, 'primary',
+    blocsForOffice(0), rivalsForOffice(0),
+    office.rivalRate,
+  );
 }
 
 export function defaultState(): GameState {
@@ -52,6 +68,7 @@ export function resetRun(state: GameState): GameState {
     newPrestige += BAL.officeWeight(Math.floor(i / 2));
   }
 
+  const office = getOffice(0);
   const fresh: GameState = {
     ...defaultState(),
     prestige: newPrestige,
@@ -61,7 +78,11 @@ export function resetRun(state: GameState): GameState {
     rngSeed: (state.rngSeed + 1) | 0,
   };
 
-  return initElection(fresh, 0, 'primary', CITY_COUNCIL_BLOCS, CITY_COUNCIL_RIVALS);
+  return initElection(
+    fresh, 0, 'primary',
+    blocsForOffice(0), rivalsForOffice(0),
+    office.rivalRate,
+  );
 }
 
 /** Called on a win: advance phase or office. */
@@ -70,17 +91,18 @@ export function advanceElection(state: GameState): GameState {
     state.phase === 'primary' ? 'general' : 'primary';
   const nextOffice = state.phase === 'general' ? state.officeIndex + 1 : state.officeIndex;
 
-  // For Phase 1, City Council only — no higher offices yet.
-  // Reset to City Council primary as a "new dynasty" start (placeholder).
-  if (nextOffice > 0) {
+  // Won the Presidency — game complete, start a new dynasty.
+  if (nextOffice > MAX_OFFICE_INDEX) {
     return resetRun(state);
   }
 
+  const office = getOffice(nextOffice);
   return initElection(
     { ...state, officeIndex: nextOffice, phase: nextPhase, electionResult: 'none' },
     nextOffice,
     nextPhase,
-    CITY_COUNCIL_BLOCS,
-    CITY_COUNCIL_RIVALS,
+    blocsForOffice(nextOffice),
+    rivalsForOffice(nextOffice),
+    office.rivalRate,
   );
 }

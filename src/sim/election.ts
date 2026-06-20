@@ -1,4 +1,5 @@
 import { BAL, PHASE1 } from '../config/balance';
+import { GENERATORS } from '../config/generators';
 import type { GameState, BlocState, RivalState, BlocStaticDef, RivalStaticDef, Era } from '../types';
 
 // TUNING TARGET: passive player auto-conversion rate per bloc (voters/sec).
@@ -95,6 +96,7 @@ export function initElection(
   phase: 'primary' | 'general',
   blocs: BlocStaticDef[],
   rivals: RivalStaticDef[],
+  rivalRate: number,
 ): GameState {
   const base = BAL.poolBase * BAL.poolGrowth ** officeIndex;
   const pool = phase === 'primary'
@@ -134,6 +136,7 @@ export function initElection(
   return {
     ...state,
     officeIndex,
+    rivalRate,
     phase,
     blocs: newBlocs,
     rivals: newRivals,
@@ -250,7 +253,7 @@ export function tick(state: GameState, dt: number): GameState {
       const rival = rivals[ri];
       if (rival.eliminated) continue;
       const leanMatch = 0.5 + 0.5 * (1 - Math.abs(rival.lean - bloc.lean) / 2);
-      const rivalRate = (PHASE1.rivalBaseRate / blocCount) * leanMatch;
+      const rivalRate = (state.rivalRate / blocCount) * leanMatch;
       const rivalDemand = rivalRate * dt;
       const rivalFromUndecided = Math.min(rivalDemand, bloc.undecided);
       bloc.undecided -= rivalFromUndecided;
@@ -264,13 +267,20 @@ export function tick(state: GameState, dt: number): GameState {
     }
   }
 
-  // --- Generator passive output ---
-  const fieldOwned = state.generators['canvasser'] ?? 0;
-  const votersPerSec = fieldOwned * PHASE1.canvasserOutput * stack;
-  const fieldVoters = votersPerSec * dt;
+  // --- Generator passive output (all unlocked generators) ---
+  let fieldVotersPerSec = 0;
+  let cashPerSec = 0;
+  for (const gen of GENERATORS) {
+    const owned = state.generators[gen.id] ?? 0;
+    if (owned === 0) continue;
+    if (gen.track === 'field')   fieldVotersPerSec += owned * gen.baseOutput;
+    if (gen.track === 'finance') cashPerSec        += owned * gen.baseOutput;
+  }
+
+  const fieldVoters = fieldVotersPerSec * stack * dt;
   if (fieldVoters > 0) {
     // Target the bloc with the most undecided; fall back to most rival voters.
-    let bestBloc = blocs.reduce((best, b) => {
+    const bestBloc = blocs.reduce((best, b) => {
       const bVal = b.undecided > 0 ? b.undecided : -(b.rivals.reduce((s, v) => s + v, 0));
       const bestVal = best.undecided > 0 ? best.undecided : -(best.rivals.reduce((s, v) => s + v, 0));
       return bVal > bestVal ? b : best;
@@ -289,8 +299,7 @@ export function tick(state: GameState, dt: number): GameState {
     }
   }
 
-  const financeOwned = state.generators['small_dollar_drive'] ?? 0;
-  cash += financeOwned * PHASE1.smallDollarOutput * stack * dt;
+  cash += cashPerSec * stack * dt;
 
   // --- Update tallies ---
   let voters = 0;

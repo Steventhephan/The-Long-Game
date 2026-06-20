@@ -3,7 +3,7 @@
   import { knockDoors } from '../sim/election';
   import { clearSave, saveGame } from '../persist/autosave';
   import { defaultState } from '../state/gameState';
-  import { GENERATORS, generatorCost, generatorOutput, maxAffordable, bulkCost } from '../config/generators';
+  import { generatorsForOffice, generatorCost, generatorOutput, maxAffordable, bulkCost } from '../config/generators';
   import type { GeneratorDef } from '../types';
 
   $: state = $gameStore;
@@ -42,8 +42,8 @@
     if ('vibrate' in navigator) navigator.vibrate(isCrit ? [30, 10, 30] : 15);
   }
 
-  // Generators available at this office
-  $: availableGenerators = GENERATORS.filter(g => g.unlockOffice === 'city_council');
+  // Generators available at the current office tier (rung ≤ officeIndex)
+  $: availableGenerators = generatorsForOffice(state.officeIndex);
   $: fieldGens = availableGenerators.filter(g => g.track === 'field');
   $: financeGens = availableGenerators.filter(g => g.track === 'finance');
 

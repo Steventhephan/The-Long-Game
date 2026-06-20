@@ -32,6 +32,7 @@ export interface GameState {
   platform: Record<string, string>; // issueId → stanceId
   blocSupport: Record<string, number>; // groupId → support multiplier
   officeIndex: number;
+  rivalRate: number;           // voters/sec total for rivals — set per office, read by tick()
   phase: 'primary' | 'general';
   timerRemaining: number;
   isRunoff: boolean;
@@ -59,7 +60,8 @@ export interface OfficeDef {
   generalPool: Num;
   primaryPool: Num;
   rivalCount: number;
-  unlocks: string[];
+  rivalRate: number;  // TUNING TARGET: total rival voters/sec for this office
+  unlocks: string[];  // generator ids that first become available here
 }
 
 export interface GeneratorDef {
