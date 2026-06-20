@@ -319,8 +319,8 @@ export function tick(state: GameState, dt: number): GameState {
   if (fieldVoters > 0) {
     // Target the bloc with the most undecided; fall back to most rival voters.
     const bestBloc = blocs.reduce((best, b) => {
-      const bVal = b.undecided > 0 ? b.undecided : -(b.rivals.reduce((s, v) => s + v, 0));
-      const bestVal = best.undecided > 0 ? best.undecided : -(best.rivals.reduce((s, v) => s + v, 0));
+      const bVal = b.undecided > 0 ? b.undecided : b.rivals.reduce((s, v) => s + v, 0);
+      const bestVal = best.undecided > 0 ? best.undecided : best.rivals.reduce((s, v) => s + v, 0);
       return bVal > bestVal ? b : best;
     }, blocs[0]);
 
