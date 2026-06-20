@@ -143,7 +143,10 @@
       {@const pool = bloc?.totalVoters ?? 0}
       {@const playerShare = pool > 0 ? (bloc?.player ?? 0) / pool : 0}
       {@const rivalShare = pool > 0 ? ((bloc?.rivals[0] ?? 0)) / pool : 0}
-      <div class="bloc-row">
+      {@const weight = state.phase === 'primary' ? group.primaryWeight : group.generalWeight}
+      {@const tier = weight >= 3 ? 'key' : weight >= 2 ? 'med' : 'low'}
+      <div class="bloc-row" class:bloc-low={tier === 'low'}>
+        <span class="bloc-key-star" class:visible={tier === 'key'}>⭐</span>
         <span class="bloc-name" title={group.name}>{group.shortName}</span>
         <div class="bloc-bar">
           <div class="bloc-fill you" style="width:{playerShare*100}%"></div>
@@ -152,6 +155,7 @@
         <span class="bloc-pct">{(playerShare*100).toFixed(0)}%</span>
       </div>
     {/each}
+    <div class="blocs-legend">⭐ key bloc this phase</div>
   </div>
 </div>
 
@@ -244,28 +248,45 @@
   .rate-display.active .rate.cash   { color: #c8a44a; }
 
   /* Blocs */
-  .blocs-section { display: flex; flex-direction: column; gap: 6px; }
+  .blocs-section { display: flex; flex-direction: column; gap: 4px; }
   .section-label {
     font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
     color: #c8a44a; border-top: 1px solid #2a2a3e; padding-top: 4px;
+    margin-bottom: 2px;
   }
-  .bloc-row { display: flex; align-items: center; gap: 6px; }
+  .bloc-row { display: flex; align-items: center; gap: 5px; transition: opacity 0.2s; }
+  .bloc-row.bloc-low { opacity: 0.38; }
+
+  .bloc-key-star {
+    font-size: 0.55rem;
+    width: 12px;
+    min-width: 12px;
+    text-align: center;
+    visibility: hidden;
+    line-height: 1;
+  }
+  .bloc-key-star.visible { visibility: visible; }
+
   .bloc-name {
     font-size: 0.68rem;
     color: #aaa;
-    width: 90px;
-    min-width: 90px;
-    max-width: 90px;
+    width: 84px;
+    min-width: 84px;
+    max-width: 84px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     flex-shrink: 0;
   }
+  .bloc-row:not(.bloc-low) .bloc-name { color: #c8c8c8; }
+
   .bloc-bar { flex: 1; height: 8px; background: #3a3a5a; border-radius: 4px; overflow: hidden; position: relative; }
   .bloc-fill { position: absolute; top: 0; height: 100%; transition: width 0.2s; border-radius: 4px; }
   .bloc-fill.you   { left: 0;  background: #4a9eff; }
   .bloc-fill.rival { right: 0; background: #e74c3c; }
-  .bloc-pct { font-size: 0.68rem; color: #4a9eff; min-width: 30px; text-align: right; }
+  .bloc-pct { font-size: 0.68rem; color: #4a9eff; min-width: 28px; text-align: right; }
+
+  .blocs-legend { font-size: 0.58rem; color: #555; margin-top: 2px; }
 
   .reset-section { display: flex; justify-content: center; padding-top: 8px; }
   .reset-btn {

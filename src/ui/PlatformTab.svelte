@@ -233,10 +233,11 @@
   .stance-buttons { display: flex; gap: 4px; }
   .stance-btn {
     flex: 1;
+    height: 44px;
     background: #1a1a2e;
     border: 1px solid #2a2a4a;
     border-radius: 4px;
-    padding: 5px 4px;
+    padding: 4px 4px;
     font-size: 0.62rem;
     font-family: inherit;
     color: #888;
@@ -245,9 +246,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 2px;
     transition: background 0.1s, border-color 0.1s, color 0.1s;
-    line-height: 1.3;
+    overflow: hidden;
   }
   .stance-btn:hover:not(.active) { border-color: #4a4a6a; color: #ccc; }
   .stance-btn.active {
@@ -256,7 +258,7 @@
     color: #f0ece4;
     font-weight: bold;
   }
-  .stance-label { font-size: 0.62rem; }
+  .stance-label { font-size: 0.62rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
   .flip-cost { font-size: 0.58rem; color: #e8944a; }
 
   /* Bloc support */
