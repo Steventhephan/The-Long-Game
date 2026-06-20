@@ -1,5 +1,6 @@
 import type { GameState } from '../types';
 import { SAVE_VERSION, defaultState } from '../state/gameState';
+import { getOffice } from '../config/offices';
 
 const SAVE_KEY = 'tlg_save_v1';
 const AUTOSAVE_INTERVAL_MS = 3000;
@@ -55,14 +56,26 @@ export function importSave(encoded: string): GameState | null {
 // ---------------------------------------------------------------------------
 
 function migrate(raw: Partial<GameState>): GameState {
-  const version = raw.version ?? 0;
+  let version = raw.version ?? 0;
 
   if (version < 1) {
-    // v0 → v1: no old saves exist yet; return defaults.
+    // v0 → v1: no old saves exist; return defaults.
     return defaultState();
   }
 
-  // Ensure all fields exist (forward-compat: new fields get defaults).
+  if (version < 2) {
+    // v1 → v2: rivalRate added to GameState (per-office value, Phase 2).
+    // All v1 saves are at City Council (officeIndex 0) — patch in its rate.
+    const officeIndex = (raw.officeIndex ?? 0);
+    try {
+      raw = { ...raw, rivalRate: getOffice(officeIndex).rivalRate };
+    } catch {
+      raw = { ...raw, rivalRate: 30 }; // fallback if office lookup fails
+    }
+    version = 2;
+  }
+
+  // Merge with defaults so any future new fields get safe initial values.
   const defaults = defaultState();
   const merged: GameState = { ...defaults, ...raw, version: SAVE_VERSION };
 

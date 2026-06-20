@@ -5,7 +5,7 @@ import { BAL } from '../config/balance';
 import { getOffice, MAX_OFFICE_INDEX } from '../config/offices';
 import { initElection } from '../sim/election';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 // Phase 2: all offices use the same 2 blocs. Phase 3 will introduce per-office bloc sets.
 function blocsForOffice(_officeIndex: number) {
