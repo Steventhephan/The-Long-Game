@@ -3,8 +3,6 @@
   import { knockDoors } from '../sim/election';
   import { clearSave, saveGame } from '../persist/autosave';
   import { defaultState } from '../state/gameState';
-  import { generatorsForOffice, generatorCost, generatorOutput, maxAffordable, bulkCost } from '../config/generators';
-  import type { GeneratorDef } from '../types';
 
   $: state = $gameStore;
 
@@ -40,30 +38,6 @@
     }
 
     if ('vibrate' in navigator) navigator.vibrate(isCrit ? [30, 10, 30] : 15);
-  }
-
-  // Generators available at the current office tier (rung ≤ officeIndex)
-  $: availableGenerators = generatorsForOffice(state.officeIndex);
-  $: fieldGens = availableGenerators.filter(g => g.track === 'field');
-  $: financeGens = availableGenerators.filter(g => g.track === 'finance');
-
-  function buyGenerator(def: GeneratorDef, qty: number) {
-    const owned = state.generators[def.id] ?? 0;
-    const cost = bulkCost(def, owned, qty);
-    if (state.cash < cost) return;
-    const newState = {
-      ...state,
-      cash: state.cash - cost,
-      generators: { ...state.generators, [def.id]: owned + qty },
-    };
-    gameStore.set(newState);
-    saveGame(newState);
-  }
-
-  function buyMax(def: GeneratorDef) {
-    const owned = state.generators[def.id] ?? 0;
-    const qty = maxAffordable(def, owned, state.cash);
-    if (qty > 0) buyGenerator(def, qty);
   }
 
   // Reset save
@@ -104,69 +78,6 @@
       <span class="knock-label">KNOCK</span>
       <span class="knock-crit-hint">5% crit</span>
     </button>
-  </div>
-
-  <!-- Generators -->
-  <div class="generators-section">
-    {#if fieldGens.length > 0}
-      <div class="gen-track-label">Field <span class="track-desc">voters/sec</span></div>
-      {#each fieldGens as def}
-        {@const owned = state.generators[def.id] ?? 0}
-        {@const cost1 = generatorCost(def, owned)}
-        {@const canBuy1 = state.cash >= cost1}
-        {@const maxQty = maxAffordable(def, owned, state.cash)}
-        <div class="generator-row" class:affordable={canBuy1}>
-          <div class="gen-info">
-            <span class="gen-name">{def.name}</span>
-            <span class="gen-owned">×{owned}</span>
-            <span class="gen-output">{formatNum(generatorOutput(def, owned))}/s</span>
-          </div>
-          <div class="gen-buttons">
-            {#if maxQty > 1}
-              <button
-                class="buy-btn buy-max"
-                on:click={() => buyMax(def)}
-              >Max {maxQty}</button>
-            {/if}
-            <button
-              class="buy-btn"
-              disabled={!canBuy1}
-              on:click={() => buyGenerator(def, 1)}
-            >${formatNum(cost1)}</button>
-          </div>
-        </div>
-      {/each}
-    {/if}
-
-    {#if financeGens.length > 0}
-      <div class="gen-track-label">Finance <span class="track-desc">cash/sec</span></div>
-      {#each financeGens as def}
-        {@const owned = state.generators[def.id] ?? 0}
-        {@const cost1 = generatorCost(def, owned)}
-        {@const canBuy1 = state.cash >= cost1}
-        {@const maxQty = maxAffordable(def, owned, state.cash)}
-        <div class="generator-row" class:affordable={canBuy1}>
-          <div class="gen-info">
-            <span class="gen-name">{def.name}</span>
-            <span class="gen-owned">×{owned}</span>
-            <span class="gen-output">${formatNum(generatorOutput(def, owned))}/s</span>
-          </div>
-          <div class="gen-buttons">
-            {#if maxQty > 1}
-              <button
-                class="buy-btn buy-max"
-                on:click={() => buyMax(def)}
-              >Max {maxQty}</button>
-            {/if}
-            <button
-              class="buy-btn"
-              disabled={!canBuy1}
-              on:click={() => buyGenerator(def, 1)}
-            >${formatNum(cost1)}</button>
-          </div>
-        </div>
-      {/each}
-    {/if}
   </div>
 
   <!-- Reset save -->
@@ -266,54 +177,6 @@
   .knock-icon { font-size: 2.5rem; line-height: 1; }
   .knock-label { font-size: 0.85rem; letter-spacing: 0.12em; }
   .knock-crit-hint { font-size: 0.6rem; color: #888; letter-spacing: 0.05em; }
-
-  /* Generators */
-  .generators-section { display: flex; flex-direction: column; gap: 8px; }
-  .gen-track-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #c8a44a;
-    padding-top: 4px;
-    border-top: 1px solid #2a2a3e;
-  }
-  .track-desc { color: #666; font-size: 0.65rem; }
-
-  .generator-row {
-    background: #1e1e30;
-    border: 1px solid #2a2a3e;
-    border-radius: 6px;
-    padding: 8px 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    opacity: 0.6;
-    transition: opacity 0.1s, border-color 0.1s;
-  }
-  .generator-row.affordable { opacity: 1; border-color: #3a3a5a; }
-
-  .gen-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .gen-name { font-size: 0.85rem; color: #f0ece4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .gen-owned { font-size: 0.7rem; color: #888; }
-  .gen-output { font-size: 0.65rem; color: #4a9eff; }
-
-  .gen-buttons { display: flex; gap: 4px; }
-  .buy-btn {
-    background: #2a3a5a;
-    border: 1px solid #4a9eff;
-    color: #4a9eff;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 0.72rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.1s;
-    white-space: nowrap;
-  }
-  .buy-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-  .buy-btn:not(:disabled):active { background: #3a4a6a; }
-  .buy-max { border-color: #c8a44a; color: #c8a44a; background: #2a2510; }
 
   /* Blocs */
   .blocs-section { display: flex; flex-direction: column; gap: 6px; }

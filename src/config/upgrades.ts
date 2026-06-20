@@ -9,7 +9,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'tap_mult_1',
     name: 'Talking Points',
-    description: 'Double your votes-per-knock.',
+    description: 'Double your votes-per-knock',
     category: 'tap',
     cost: 150,
     effect: { kind: 'tapMult', value: 2 },
@@ -18,7 +18,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'tap_mult_2',
     name: 'Stump Speech',
-    description: 'Double your votes-per-knock again.',
+    description: 'Double your votes-per-knock again',
     category: 'tap',
     cost: 1_500,
     effect: { kind: 'tapMult', value: 2 },
@@ -27,7 +27,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'tap_mult_3',
     name: 'Campaign Trail',
-    description: 'Double your votes-per-knock once more.',
+    description: 'Double your votes-per-knock once more',
     category: 'tap',
     cost: 15_000,
     effect: { kind: 'tapMult', value: 2 },
@@ -38,7 +38,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'crit_1',
     name: 'Lucky Break',
-    description: '+5% chance of a critical knock.',
+    description: '+5% chance of a critical knock',
     category: 'tap',
     cost: 100,
     effect: { kind: 'critChance', value: 0.05 },
@@ -47,7 +47,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'crit_2',
     name: 'Silver Tongue',
-    description: '+5% chance of a critical knock.',
+    description: '+5% chance of a critical knock',
     category: 'tap',
     cost: 1_000,
     effect: { kind: 'critChance', value: 0.05 },
@@ -58,7 +58,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'field_mult_1',
     name: 'Grassroots Network',
-    description: 'Double all canvasser and field output.',
+    description: 'Double all canvasser and field output',
     category: 'field',
     cost: 400,
     effect: { kind: 'fieldMult', value: 2 },
@@ -67,7 +67,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'field_mult_2',
     name: 'Precinct Captains',
-    description: 'Double all field output again.',
+    description: 'Double all field output again',
     category: 'field',
     cost: 4_000,
     effect: { kind: 'fieldMult', value: 2 },
@@ -76,7 +76,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'field_mult_3',
     name: 'Rapid Response Team',
-    description: 'Double all field output once more.',
+    description: 'Double all field output once more',
     category: 'field',
     cost: 40_000,
     effect: { kind: 'fieldMult', value: 2 },
@@ -87,7 +87,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'finance_mult_1',
     name: 'Matching Pledge',
-    description: 'Double all fundraising output.',
+    description: 'Double all fundraising output',
     category: 'finance',
     cost: 300,
     effect: { kind: 'financeMult', value: 2 },
@@ -96,7 +96,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'finance_mult_2',
     name: 'Donor Database',
-    description: 'Double all fundraising output again.',
+    description: 'Double all fundraising output again',
     category: 'finance',
     cost: 3_000,
     effect: { kind: 'financeMult', value: 2 },
@@ -105,7 +105,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'finance_mult_3',
     name: 'Fundraising Gala',
-    description: 'Double all fundraising output once more.',
+    description: 'Double all fundraising output once more',
     category: 'finance',
     cost: 30_000,
     effect: { kind: 'financeMult', value: 2 },

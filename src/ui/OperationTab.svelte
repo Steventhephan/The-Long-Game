@@ -46,8 +46,16 @@
     if (qty > 0) buyGenerator(def, qty);
   }
 
-  // Upgrades
+  // Upgrades — unpurchased first (original order), purchased last grouped by category
   $: availableUpgrades = upgradesForOffice(state.officeIndex);
+  const CATEGORY_ORDER: Record<string, number> = { tap: 0, field: 1, finance: 2, synergy: 3 };
+  $: sortedUpgrades = [...availableUpgrades].sort((a, b) => {
+    const aPurch = state.upgrades.includes(a.id);
+    const bPurch = state.upgrades.includes(b.id);
+    if (aPurch !== bPurch) return aPurch ? 1 : -1;
+    if (aPurch) return (CATEGORY_ORDER[a.category] ?? 99) - (CATEGORY_ORDER[b.category] ?? 99);
+    return 0;
+  });
 
   function buyUpgrade(id: string, cost: number) {
     if (state.cash < cost || state.upgrades.includes(id)) return;
@@ -122,7 +130,7 @@
   {#if availableUpgrades.length > 0}
     <div class="gen-section">
       <div class="section-header">Upgrades</div>
-      {#each availableUpgrades as u}
+      {#each sortedUpgrades as u}
         {@const purchased = state.upgrades.includes(u.id)}
         {@const canBuy = !purchased && state.cash >= u.cost}
         <div class="upgrade-row" class:purchased class:affordable={canBuy}>
