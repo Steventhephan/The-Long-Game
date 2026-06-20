@@ -18,8 +18,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(0),
     primaryPool: Math.round(pool(0) * BAL.primaryPoolRatio),
     rivalCount: 1,
-    rivalRatePrimary: 30,  // calibrated — primary feels right, do not change without re-testing
-    rivalRateGeneral: 26,  // reduced from 30: playtest showed 30 forced a runoff every general
+    rivalRatePrimary: 18,  // TUNING TARGET: rival ~14.85/s effective; ahead of tap-only (12/s), gens flip it
+    rivalRateGeneral: 13,  // TUNING TARGET: lower than primary; carry-over gens make general competitive
     unlocks: ['canvasser', 'small_dollar_drive'],
   },
   {
@@ -30,8 +30,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(1),
     primaryPool: Math.round(pool(1) * BAL.primaryPoolRatio),
     rivalCount: 1,
-    rivalRatePrimary: 75,  // TUNING TARGET
-    rivalRateGeneral: 75,  // TUNING TARGET
+    rivalRatePrimary: 45,  // TUNING TARGET (~2.5× CC primary)
+    rivalRateGeneral: 45,  // TUNING TARGET
     unlocks: ['phone_bank', 'email_fundraising'],
   },
   {
@@ -42,8 +42,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(2),
     primaryPool: Math.round(pool(2) * BAL.primaryPoolRatio),
     rivalCount: 2,
-    rivalRatePrimary: 190, // TUNING TARGET
-    rivalRateGeneral: 190, // TUNING TARGET
+    rivalRatePrimary: 112, // TUNING TARGET (~2.5× Mayor)
+    rivalRateGeneral: 112, // TUNING TARGET
     unlocks: ['regional_office', 'donor_dinner'],
   },
   {
@@ -54,8 +54,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(3),
     primaryPool: Math.round(pool(3) * BAL.primaryPoolRatio),
     rivalCount: 2,
-    rivalRatePrimary: 475, // TUNING TARGET
-    rivalRateGeneral: 475, // TUNING TARGET
+    rivalRatePrimary: 280, // TUNING TARGET (~2.5× County)
+    rivalRateGeneral: 280, // TUNING TARGET
     unlocks: ['campaign_bus', 'bundler_network'],
   },
   {
@@ -66,8 +66,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(4),
     primaryPool: Math.round(pool(4) * BAL.primaryPoolRatio),
     rivalCount: 3,
-    rivalRatePrimary: 1200, // TUNING TARGET
-    rivalRateGeneral: 1200, // TUNING TARGET
+    rivalRatePrimary: 700,  // TUNING TARGET (~2.5× County Exec)
+    rivalRateGeneral: 700,  // TUNING TARGET
     unlocks: ['rally_tour', 'national_fundraising'],
   },
   {
@@ -78,8 +78,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(5),
     primaryPool: Math.round(pool(5) * BAL.primaryPoolRatio),
     rivalCount: 3,
-    rivalRatePrimary: 3000, // TUNING TARGET
-    rivalRateGeneral: 3000, // TUNING TARGET
+    rivalRatePrimary: 1750, // TUNING TARGET (~2.5× State Leg)
+    rivalRateGeneral: 1750, // TUNING TARGET
     unlocks: ['tv_ad_spot', 'corporate_sponsorships'],
   },
   {
@@ -90,8 +90,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(6),
     primaryPool: Math.round(pool(6) * BAL.primaryPoolRatio),
     rivalCount: 4,
-    rivalRatePrimary: 7500, // TUNING TARGET
-    rivalRateGeneral: 7500, // TUNING TARGET
+    rivalRatePrimary: 4375, // TUNING TARGET (~2.5× Governor)
+    rivalRateGeneral: 4375, // TUNING TARGET
     unlocks: ['micro_targeting', 'lobbyist_alliance'],
   },
   {
@@ -102,8 +102,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(7),
     primaryPool: Math.round(pool(7) * BAL.primaryPoolRatio),
     rivalCount: 4,
-    rivalRatePrimary: 18500, // TUNING TARGET
-    rivalRateGeneral: 18500, // TUNING TARGET
+    rivalRatePrimary: 10900, // TUNING TARGET (~2.5× Senate)
+    rivalRateGeneral: 10900, // TUNING TARGET
     unlocks: ['national_media_team', 'super_pac'],
   },
 ];

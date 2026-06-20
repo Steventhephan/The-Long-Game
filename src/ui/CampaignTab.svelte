@@ -118,7 +118,7 @@
     >
       <span class="knock-icon">🚪</span>
       <span class="knock-label">KNOCK</span>
-      <span class="knock-crit-hint">5% crit</span>
+      <span class="knock-crit-hint">{Math.round(effects.critChance * 100)}% ⚡</span>
     </button>
 
     <div class="rate-display" class:active={isActive}>

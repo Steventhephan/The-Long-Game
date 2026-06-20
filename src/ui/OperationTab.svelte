@@ -101,7 +101,7 @@
         {@const canBuy1 = state.cash >= cost1}
         {@const maxQty = maxAffordable(g, owned, state.cash)}
         {@const rate = genOutputRate(g)}
-        <div class="gen-row" class:affordable={canBuy1} class:empty={owned === 0}>
+        <div class="gen-row" class:affordable={canBuy1}>
           <div class="gen-meta">
             <span class="gen-name">{g.name}</span>
             <div class="gen-stats">
@@ -213,11 +213,10 @@
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    opacity: 0.55;
+    opacity: 0.75;
     transition: opacity 0.1s, border-color 0.1s;
   }
   .gen-row.affordable { opacity: 1; border-color: #3a3a5a; }
-  .gen-row.empty { opacity: 0.4; }
 
   .gen-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
   .gen-name { font-size: 0.85rem; color: #f0ece4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

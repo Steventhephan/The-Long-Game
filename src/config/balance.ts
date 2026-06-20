@@ -28,7 +28,7 @@ export const BAL = {
 
 // Phase-1 tuning targets — adjust freely during playtesting.
 export const PHASE1 = {
-  tapVoters: 7,        // TUNING TARGET: calibrated for ~4 taps/sec human; 4×7=28/s ≈ rival's ~25/s effective
+  tapVoters: 3,        // TUNING TARGET: 3/tap; at 4 taps/sec = 12/s — rival ~14.85/s, generators close the gap
   tapCash: 2,          // TUNING TARGET: proportionally reduced; first generator costs ~9s of tapping
   playerBaseConv: 0.5, // TUNING TARGET: passive player voters/sec per bloc (minor drip; tap is the driver)
   // rivalBaseRate removed — each office now has its own rivalRate in config/offices.ts

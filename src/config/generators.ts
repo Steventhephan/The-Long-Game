@@ -7,11 +7,13 @@ import { BAL } from './balance';
 // baseCost0 = 75 (tuned for ~4 taps/sec human — see Phase 1 Build Log).
 // baseOutput0 = 2.0 (voters/sec for Field, cash/sec for Finance).
 
-const BASE_COST_0 = 75;
-const BASE_OUT_0  = 2.0;
+const BASE_COST_0   = 75;
+const FIELD_OUT_0   = 5.0;  // TUNING TARGET: raised from 2.0 — each unit more impactful to offset tapVoters reduction
+const FINANCE_OUT_0 = 2.0;  // TUNING TARGET: unchanged — cash flow stays the same
 
-function cost(rung: number)   { return Math.round(BASE_COST_0 * 8 ** rung); }
-function output(rung: number) { return parseFloat((BASE_OUT_0 * 7 ** rung).toPrecision(4)); }
+function cost(rung: number)          { return Math.round(BASE_COST_0 * 8 ** rung); }
+function fieldOutput(rung: number)   { return parseFloat((FIELD_OUT_0   * 7 ** rung).toPrecision(4)); }
+function financeOutput(rung: number) { return parseFloat((FINANCE_OUT_0 * 7 ** rung).toPrecision(4)); }
 
 const OFFICE_IDS = [
   'city_council', 'mayor', 'county_council', 'county_executive',
@@ -24,7 +26,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'canvasser',
     name: 'Canvasser',
     track: 'field', rung: 0,
-    baseCost: cost(0), baseOutput: output(0),
+    baseCost: cost(0), baseOutput: fieldOutput(0),
     unlockOffice: OFFICE_IDS[0],
     flavor: 'Going door to door, one conversation at a time.',
   },
@@ -32,7 +34,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'phone_bank',
     name: 'Phone Bank',
     track: 'field', rung: 1,
-    baseCost: cost(1), baseOutput: output(1),
+    baseCost: cost(1), baseOutput: fieldOutput(1),
     unlockOffice: OFFICE_IDS[1],
     flavor: 'Volunteers on the phones, reaching hundreds a night.',
   },
@@ -40,7 +42,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'regional_office',
     name: 'Regional Office',
     track: 'field', rung: 2,
-    baseCost: cost(2), baseOutput: output(2),
+    baseCost: cost(2), baseOutput: fieldOutput(2),
     unlockOffice: OFFICE_IDS[2],
     flavor: 'A local hub turning neighbors into organizers.',
   },
@@ -48,7 +50,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'campaign_bus',
     name: 'Campaign Bus',
     track: 'field', rung: 3,
-    baseCost: cost(3), baseOutput: output(3),
+    baseCost: cost(3), baseOutput: fieldOutput(3),
     unlockOffice: OFFICE_IDS[3],
     flavor: 'Rolling through every precinct, sunrise to sundown.',
   },
@@ -56,7 +58,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'rally_tour',
     name: 'Rally Tour',
     track: 'field', rung: 4,
-    baseCost: cost(4), baseOutput: output(4),
+    baseCost: cost(4), baseOutput: fieldOutput(4),
     unlockOffice: OFFICE_IDS[4],
     flavor: 'Packed auditoriums converting enthusiasm into votes.',
   },
@@ -64,7 +66,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'tv_ad_spot',
     name: 'TV Ad Spot',
     track: 'field', rung: 5,
-    baseCost: cost(5), baseOutput: output(5),
+    baseCost: cost(5), baseOutput: fieldOutput(5),
     unlockOffice: OFFICE_IDS[5],
     flavor: '"Paid for by the Committee to Elect…"',
   },
@@ -72,7 +74,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'micro_targeting',
     name: 'Micro-Targeting Data Team',
     track: 'field', rung: 6,
-    baseCost: cost(6), baseOutput: output(6),
+    baseCost: cost(6), baseOutput: fieldOutput(6),
     unlockOffice: OFFICE_IDS[6],
     flavor: 'Every ad, every door — precision-matched to the voter.',
   },
@@ -80,7 +82,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'national_media_team',
     name: 'National Media Team',
     track: 'field', rung: 7,
-    baseCost: cost(7), baseOutput: output(7),
+    baseCost: cost(7), baseOutput: fieldOutput(7),
     unlockOffice: OFFICE_IDS[7],
     flavor: 'The full media apparatus of a presidential campaign.',
   },
@@ -90,7 +92,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'small_dollar_drive',
     name: 'Small-Dollar Drive',
     track: 'finance', rung: 0,
-    baseCost: cost(0), baseOutput: output(0),
+    baseCost: cost(0), baseOutput: financeOutput(0),
     unlockOffice: OFFICE_IDS[0],
     flavor: '$5 here, $10 there — it adds up.',
   },
@@ -98,7 +100,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'email_fundraising',
     name: 'Email Fundraising List',
     track: 'finance', rung: 1,
-    baseCost: cost(1), baseOutput: output(1),
+    baseCost: cost(1), baseOutput: financeOutput(1),
     unlockOffice: OFFICE_IDS[1],
     flavor: '"Friend, I\'ll be honest with you…"',
   },
@@ -106,7 +108,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'donor_dinner',
     name: 'Donor Dinner',
     track: 'finance', rung: 2,
-    baseCost: cost(2), baseOutput: output(2),
+    baseCost: cost(2), baseOutput: financeOutput(2),
     unlockOffice: OFFICE_IDS[2],
     flavor: 'Rubber chicken, real checks.',
   },
@@ -114,7 +116,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'bundler_network',
     name: 'Bundler Network',
     track: 'finance', rung: 3,
-    baseCost: cost(3), baseOutput: output(3),
+    baseCost: cost(3), baseOutput: financeOutput(3),
     unlockOffice: OFFICE_IDS[3],
     flavor: 'Each bundler brings a rolodex of max-donors.',
   },
@@ -122,7 +124,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'national_fundraising',
     name: 'National Fundraising Committee',
     track: 'finance', rung: 4,
-    baseCost: cost(4), baseOutput: output(4),
+    baseCost: cost(4), baseOutput: financeOutput(4),
     unlockOffice: OFFICE_IDS[4],
     flavor: 'A coordinated machine working every time zone.',
   },
@@ -130,7 +132,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'corporate_sponsorships',
     name: 'Corporate Sponsorships',
     track: 'finance', rung: 5,
-    baseCost: cost(5), baseOutput: output(5),
+    baseCost: cost(5), baseOutput: financeOutput(5),
     unlockOffice: OFFICE_IDS[5],
     flavor: 'Logos on the podium, checks in the war chest.',
   },
@@ -138,7 +140,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'lobbyist_alliance',
     name: 'Lobbyist Alliance',
     track: 'finance', rung: 6,
-    baseCost: cost(6), baseOutput: output(6),
+    baseCost: cost(6), baseOutput: financeOutput(6),
     unlockOffice: OFFICE_IDS[6],
     flavor: 'K Street knows which way the wind is blowing.',
   },
@@ -146,7 +148,7 @@ export const GENERATORS: GeneratorDef[] = [
     id: 'super_pac',
     name: 'Super PAC',
     track: 'finance', rung: 7,
-    baseCost: cost(7), baseOutput: output(7),
+    baseCost: cost(7), baseOutput: financeOutput(7),
     unlockOffice: OFFICE_IDS[7],
     flavor: 'Technically independent. Practically unlimited.',
   },
