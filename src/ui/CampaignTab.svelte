@@ -171,13 +171,11 @@
       {@const pool = bloc.totalVoters}
       {@const playerShare = pool > 0 ? bloc.player / pool : 0}
       {@const rivalShare = pool > 0 ? (bloc.rivals[0] ?? 0) / pool : 0}
-      {@const undecidedShare = pool > 0 ? bloc.undecided / pool : 0}
       <div class="bloc-row">
         <span class="bloc-name">{bloc.groupId.replace(/_/g, ' ')}</span>
         <div class="bloc-bar">
           <div class="bloc-fill you" style="width:{playerShare*100}%"></div>
           <div class="bloc-fill rival" style="width:{rivalShare*100}%"></div>
-          <div class="bloc-fill undecided" style="width:{undecidedShare*100}%"></div>
         </div>
         <span class="bloc-pct">{(playerShare*100).toFixed(0)}%</span>
       </div>
@@ -205,7 +203,12 @@
   }
   .knock-feedback {
     position: absolute;
-    top: -36px;
+    /* Sits near the top of the 160px button, floats upward through it.
+       Positive top keeps it inside .campaign-tab's overflow-y container. */
+    top: 55px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
     font-size: 1.05rem;
     font-weight: bold;
     color: #4a9eff;
@@ -219,14 +222,15 @@
     text-shadow: 0 0 12px rgba(241, 196, 15, 0.8);
     animation: crit-float 1.2s ease-out forwards;
   }
+  /* translateX(-50%) must be included in every keyframe since it's on the element */
   @keyframes float-up {
-    from { opacity: 1; transform: translateY(0) scale(1); }
-    to   { opacity: 0; transform: translateY(-36px) scale(0.85); }
+    from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateX(-50%) translateY(-44px) scale(0.85); }
   }
   @keyframes crit-float {
-    0%   { opacity: 1; transform: translateY(0) scale(1.1); }
-    15%  { opacity: 1; transform: translateY(-8px) scale(1.25); }
-    100% { opacity: 0; transform: translateY(-52px) scale(0.9); }
+    0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.1); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.25); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-44px) scale(0.9); }
   }
 
   .knock-btn {
@@ -314,11 +318,10 @@
   }
   .bloc-row { display: flex; align-items: center; gap: 6px; }
   .bloc-name { font-size: 0.68rem; color: #aaa; min-width: 90px; text-transform: capitalize; }
-  .bloc-bar { flex: 1; height: 8px; background: #2a2a3e; border-radius: 4px; overflow: hidden; display: flex; }
-  .bloc-fill { height: 100%; transition: width 0.2s; }
-  .bloc-fill.you       { background: #4a9eff; }
-  .bloc-fill.rival     { background: #e74c3c; }
-  .bloc-fill.undecided { background: #3a3a5a; }
+  .bloc-bar { flex: 1; height: 8px; background: #3a3a5a; border-radius: 4px; overflow: hidden; position: relative; }
+  .bloc-fill { position: absolute; top: 0; height: 100%; transition: width 0.2s; border-radius: 4px; }
+  .bloc-fill.you   { left: 0;  background: #4a9eff; }
+  .bloc-fill.rival { right: 0; background: #e74c3c; }
   .bloc-pct { font-size: 0.68rem; color: #4a9eff; min-width: 30px; text-align: right; }
 
   .reset-section { display: flex; justify-content: center; padding-top: 8px; }
