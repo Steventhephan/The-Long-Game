@@ -1,7 +1,8 @@
 <script lang="ts">
   import { gameStore, formatNum } from '../state/store';
   import { knockDoors } from '../sim/election';
-  import { saveGame } from '../persist/autosave';
+  import { clearSave, saveGame } from '../persist/autosave';
+  import { defaultState } from '../state/gameState';
   import { GENERATORS, generatorCost, generatorOutput, maxAffordable, bulkCost } from '../config/generators';
   import type { GeneratorDef } from '../types';
 
@@ -53,6 +54,22 @@
     const owned = state.generators[def.id] ?? 0;
     const qty = maxAffordable(def, owned, state.cash);
     if (qty > 0) buyGenerator(def, qty);
+  }
+
+  // Reset save
+  let confirmReset = false;
+  let confirmTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function onResetClick() {
+    if (!confirmReset) {
+      confirmReset = true;
+      confirmTimeout = setTimeout(() => { confirmReset = false; }, 3000);
+    } else {
+      if (confirmTimeout) clearTimeout(confirmTimeout);
+      confirmReset = false;
+      clearSave();
+      gameStore.set(defaultState());
+    }
   }
 </script>
 
@@ -136,6 +153,13 @@
         </div>
       {/each}
     {/if}
+  </div>
+
+  <!-- Reset save -->
+  <div class="reset-section">
+    <button class="reset-btn" class:confirm={confirmReset} on:click={onResetClick}>
+      {confirmReset ? '⚠️ Tap again to confirm reset' : 'Reset Save'}
+    </button>
   </div>
 
   <!-- Bloc breakdown -->
@@ -278,4 +302,19 @@
   .bloc-fill.rival     { background: #e74c3c; }
   .bloc-fill.undecided { background: #3a3a5a; }
   .bloc-pct { font-size: 0.68rem; color: #4a9eff; min-width: 30px; text-align: right; }
+
+  .reset-section { display: flex; justify-content: center; padding-top: 8px; }
+  .reset-btn {
+    background: transparent;
+    border: 1px solid #3a2a2a;
+    color: #555;
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-family: inherit;
+    font-size: 0.68rem;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .reset-btn:hover { border-color: #7a3a3a; color: #c0392b; }
+  .reset-btn.confirm { border-color: #c0392b; color: #e74c3c; background: #1a0a0a; }
 </style>
