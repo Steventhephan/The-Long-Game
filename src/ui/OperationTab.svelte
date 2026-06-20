@@ -1,0 +1,257 @@
+<script lang="ts">
+  import { gameStore, formatNum } from '../state/store';
+  import { computeStack, computeUpgradeEffects } from '../sim/election';
+  import { generatorsForOffice, generatorCost, generatorOutput, maxAffordable, bulkCost } from '../config/generators';
+  import { upgradesForOffice } from '../config/upgrades';
+  import { saveGame } from '../persist/autosave';
+  import type { GeneratorDef } from '../types';
+
+  $: state = $gameStore;
+  $: effects = computeUpgradeEffects(state);
+  $: stack = computeStack(state);
+  $: unlocked = generatorsForOffice(state.officeIndex);
+  $: fieldGens = unlocked.filter(g => g.track === 'field');
+  $: financeGens = unlocked.filter(g => g.track === 'finance');
+
+  // Live aggregate output rates (includes upgrades + global stack)
+  $: totalFieldRate = fieldGens.reduce((sum, g) => {
+    const owned = state.generators[g.id] ?? 0;
+    return sum + owned * g.baseOutput * effects.fieldMult * stack;
+  }, 0);
+  $: totalCashRate = financeGens.reduce((sum, g) => {
+    const owned = state.generators[g.id] ?? 0;
+    return sum + owned * g.baseOutput * effects.financeMult * stack;
+  }, 0);
+
+  function genOutputRate(g: GeneratorDef): number {
+    const mult = g.track === 'field' ? effects.fieldMult : effects.financeMult;
+    return generatorOutput(g, state.generators[g.id] ?? 0) * mult * stack;
+  }
+
+  function buyGenerator(def: GeneratorDef, qty: number) {
+    const owned = state.generators[def.id] ?? 0;
+    const cost = bulkCost(def, owned, qty);
+    if (state.cash < cost) return;
+    const newState = {
+      ...state,
+      cash: state.cash - cost,
+      generators: { ...state.generators, [def.id]: owned + qty },
+    };
+    gameStore.set(newState);
+    saveGame(newState);
+  }
+
+  function buyMax(def: GeneratorDef) {
+    const qty = maxAffordable(def, state.generators[def.id] ?? 0, state.cash);
+    if (qty > 0) buyGenerator(def, qty);
+  }
+
+  // Upgrades
+  $: availableUpgrades = upgradesForOffice(state.officeIndex);
+
+  function buyUpgrade(id: string, cost: number) {
+    if (state.cash < cost || state.upgrades.includes(id)) return;
+    const newState = {
+      ...state,
+      cash: state.cash - cost,
+      upgrades: [...state.upgrades, id],
+    };
+    gameStore.set(newState);
+    saveGame(newState);
+  }
+</script>
+
+<div class="operation-tab">
+
+  <!-- Output summary -->
+  <div class="summary-section">
+    <div class="summary-row">
+      <span class="summary-label">Field output</span>
+      <span class="summary-value field">{formatNum(totalFieldRate)} voters/s</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Finance output</span>
+      <span class="summary-value finance">${formatNum(totalCashRate)}/s</span>
+    </div>
+    {#if effects.tapMult > 1 || effects.fieldMult > 1 || effects.financeMult > 1}
+      <div class="summary-row mults">
+        {#if effects.tapMult > 1}<span class="mult-tag">Tap ×{effects.tapMult}</span>{/if}
+        {#if effects.fieldMult > 1}<span class="mult-tag field">Field ×{effects.fieldMult}</span>{/if}
+        {#if effects.financeMult > 1}<span class="mult-tag finance">Finance ×{effects.financeMult}</span>{/if}
+        <span class="mult-tag stack">Stack ×{stack.toFixed(2)}</span>
+      </div>
+    {/if}
+  </div>
+
+  <!-- Generator tracks -->
+  {#each [{ label: 'Field', unit: 'voters/s', gens: fieldGens }, { label: 'Finance', unit: '$/s', gens: financeGens }] as track}
+    <div class="gen-section">
+      <div class="section-header">{track.label} <span class="unit">{track.unit}</span></div>
+      {#each track.gens as g}
+        {@const owned = state.generators[g.id] ?? 0}
+        {@const cost1 = generatorCost(g, owned)}
+        {@const canBuy1 = state.cash >= cost1}
+        {@const maxQty = maxAffordable(g, owned, state.cash)}
+        {@const rate = genOutputRate(g)}
+        <div class="gen-row" class:affordable={canBuy1} class:empty={owned === 0}>
+          <div class="gen-meta">
+            <span class="gen-name">{g.name}</span>
+            <div class="gen-stats">
+              <span class="gen-owned">×{owned}</span>
+              {#if owned > 0}
+                <span class="gen-rate {g.track}">{formatNum(rate)}/s</span>
+              {:else}
+                <span class="gen-rate dim">{formatNum(g.baseOutput)}/s each</span>
+              {/if}
+            </div>
+          </div>
+          <div class="gen-buttons">
+            {#if maxQty > 1}
+              <button class="buy-btn buy-max" on:click={() => buyMax(g)}>Max {maxQty}</button>
+            {/if}
+            <button class="buy-btn" disabled={!canBuy1} on:click={() => buyGenerator(g, 1)}>
+              ${formatNum(cost1)}
+            </button>
+          </div>
+        </div>
+      {/each}
+    </div>
+  {/each}
+
+  <!-- Upgrades -->
+  {#if availableUpgrades.length > 0}
+    <div class="gen-section">
+      <div class="section-header">Upgrades</div>
+      {#each availableUpgrades as u}
+        {@const purchased = state.upgrades.includes(u.id)}
+        {@const canBuy = !purchased && state.cash >= u.cost}
+        <div class="upgrade-row" class:purchased class:affordable={canBuy}>
+          <div class="gen-meta">
+            <span class="gen-name" class:dim={purchased}>{u.name}</span>
+            <span class="gen-rate dim">{u.description}</span>
+          </div>
+          {#if purchased}
+            <span class="bought-badge">✓ Bought</span>
+          {:else}
+            <button
+              class="buy-btn"
+              disabled={!canBuy}
+              on:click={() => buyUpgrade(u.id, u.cost)}
+            >${formatNum(u.cost)}</button>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+</div>
+
+<style>
+  .operation-tab {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Summary */
+  .summary-section {
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; }
+  .summary-row.mults { flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+  .summary-label { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 0.07em; }
+  .summary-value { font-size: 1rem; font-weight: bold; color: #f0ece4; }
+  .summary-value.field   { color: #4a9eff; }
+  .summary-value.finance { color: #c8a44a; }
+  .mult-tag {
+    font-size: 0.62rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: #2a2a3e;
+    color: #aaa;
+    letter-spacing: 0.05em;
+  }
+  .mult-tag.field   { color: #4a9eff; background: #1a2a3e; }
+  .mult-tag.finance { color: #c8a44a; background: #2a1e10; }
+  .mult-tag.stack   { color: #a0e080; background: #1a2a1a; }
+
+  /* Generator sections */
+  .gen-section { display: flex; flex-direction: column; gap: 6px; }
+  .section-header {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #c8a44a;
+    border-top: 1px solid #2a2a3e;
+    padding-top: 4px;
+  }
+  .unit { color: #666; font-size: 0.65rem; }
+
+  .gen-row {
+    background: #1e1e30;
+    border: 1px solid #2a2a3e;
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.55;
+    transition: opacity 0.1s, border-color 0.1s;
+  }
+  .gen-row.affordable { opacity: 1; border-color: #3a3a5a; }
+  .gen-row.empty { opacity: 0.4; }
+
+  .gen-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .gen-name { font-size: 0.85rem; color: #f0ece4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gen-name.dim { color: #777; }
+  .gen-stats { display: flex; gap: 8px; align-items: center; }
+  .gen-owned { font-size: 0.7rem; color: #888; }
+  .gen-rate { font-size: 0.68rem; }
+  .gen-rate.field   { color: #4a9eff; }
+  .gen-rate.finance { color: #c8a44a; }
+  .gen-rate.dim     { color: #555; }
+
+  .gen-buttons { display: flex; gap: 4px; flex-shrink: 0; }
+  .buy-btn {
+    background: #2a3a5a;
+    border: 1px solid #4a9eff;
+    color: #4a9eff;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+  .buy-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .buy-btn:not(:disabled):active { background: #3a4a6a; }
+  .buy-max { border-color: #c8a44a; color: #c8a44a; background: #2a2510; }
+
+  /* Upgrades */
+  .upgrade-row {
+    background: #1e1e30;
+    border: 1px solid #2a2a3e;
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.55;
+    transition: opacity 0.1s, border-color 0.1s;
+  }
+  .upgrade-row.affordable { opacity: 1; border-color: #3a5a3a; }
+  .upgrade-row.purchased  { opacity: 0.4; border-color: #2a2a3e; }
+  .bought-badge { font-size: 0.68rem; color: #4a8a4a; white-space: nowrap; }
+</style>

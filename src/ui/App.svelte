@@ -1,11 +1,15 @@
 <script lang="ts">
   import Header from './Header.svelte';
   import CampaignTab from './CampaignTab.svelte';
+  import OperationTab from './OperationTab.svelte';
   import ResultModal from './ResultModal.svelte';
   import { gameStore } from '../state/store';
 
-  // Active tab — Phase 1 only has Campaign.
-  let activeTab: 'campaign' = 'campaign';
+  type Tab = 'campaign' | 'operation';
+  let activeTab: Tab = 'campaign';
+
+  // Operation unlocks once the player has purchased any generator.
+  $: operationUnlocked = Object.values($gameStore.generators).some(v => v > 0);
 </script>
 
 <div class="app-shell">
@@ -14,6 +18,8 @@
   <main class="tab-content">
     {#if activeTab === 'campaign'}
       <CampaignTab />
+    {:else if activeTab === 'operation'}
+      <OperationTab />
     {/if}
   </main>
 
@@ -23,8 +29,14 @@
       class:active={activeTab === 'campaign'}
       on:click={() => activeTab = 'campaign'}
     >Campaign</button>
-    <!-- Phase 2+: Operation, Platform, Legacy tabs unlock here -->
-    <button class="tab-btn locked" disabled title="Unlocks later">Operation</button>
+    <button
+      class="tab-btn"
+      class:active={activeTab === 'operation'}
+      class:locked={!operationUnlocked}
+      disabled={!operationUnlocked}
+      on:click={() => activeTab = 'operation'}
+      title={operationUnlocked ? '' : 'Buy a generator to unlock'}
+    >Operation</button>
     <button class="tab-btn locked" disabled title="Unlocks later">Platform</button>
     <button class="tab-btn locked" disabled title="Unlocks later">Legacy</button>
   </nav>

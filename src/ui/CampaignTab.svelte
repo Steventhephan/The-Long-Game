@@ -4,7 +4,6 @@
   import { clearSave, saveGame } from '../persist/autosave';
   import { defaultState } from '../state/gameState';
   import { generatorsForOffice, generatorCost, generatorOutput, maxAffordable, bulkCost } from '../config/generators';
-  import { upgradesForOffice } from '../config/upgrades';
   import type { GeneratorDef } from '../types';
 
   $: state = $gameStore;
@@ -65,21 +64,6 @@
     const owned = state.generators[def.id] ?? 0;
     const qty = maxAffordable(def, owned, state.cash);
     if (qty > 0) buyGenerator(def, qty);
-  }
-
-  // Upgrades
-  $: availableUpgrades = upgradesForOffice(state.officeIndex);
-  $: unpurchasedUpgrades = availableUpgrades.filter(u => !state.upgrades.includes(u.id));
-
-  function buyUpgrade(id: string, cost: number) {
-    if (state.cash < cost || state.upgrades.includes(id)) return;
-    const newState = {
-      ...state,
-      cash: state.cash - cost,
-      upgrades: [...state.upgrades, id],
-    };
-    gameStore.set(newState);
-    saveGame(newState);
   }
 
   // Reset save
@@ -184,27 +168,6 @@
       {/each}
     {/if}
   </div>
-
-  <!-- Upgrades shop -->
-  {#if unpurchasedUpgrades.length > 0}
-    <div class="upgrades-section">
-      <div class="gen-track-label">Upgrades</div>
-      {#each unpurchasedUpgrades as u}
-        {@const canBuy = state.cash >= u.cost}
-        <div class="upgrade-row" class:affordable={canBuy}>
-          <div class="gen-info">
-            <span class="gen-name">{u.name}</span>
-            <span class="gen-output">{u.description}</span>
-          </div>
-          <button
-            class="buy-btn"
-            disabled={!canBuy}
-            on:click={() => buyUpgrade(u.id, u.cost)}
-          >${formatNum(u.cost)}</button>
-        </div>
-      {/each}
-    </div>
-  {/if}
 
   <!-- Reset save -->
   <div class="reset-section">
@@ -351,22 +314,6 @@
   .buy-btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .buy-btn:not(:disabled):active { background: #3a4a6a; }
   .buy-max { border-color: #c8a44a; color: #c8a44a; background: #2a2510; }
-
-  /* Upgrades */
-  .upgrades-section { display: flex; flex-direction: column; gap: 8px; }
-  .upgrade-row {
-    background: #1e1e30;
-    border: 1px solid #2a2a3e;
-    border-radius: 6px;
-    padding: 8px 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    opacity: 0.6;
-    transition: opacity 0.1s, border-color 0.1s;
-  }
-  .upgrade-row.affordable { opacity: 1; border-color: #3a5a3a; }
 
   /* Blocs */
   .blocs-section { display: flex; flex-direction: column; gap: 6px; }
