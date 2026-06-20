@@ -67,8 +67,10 @@ function migrate(raw: Partial<GameState>): GameState {
     // v1 → v2: rivalRate added to GameState (per-office value, Phase 2).
     // All v1 saves are at City Council (officeIndex 0) — patch in its rate.
     const officeIndex = (raw.officeIndex ?? 0);
+    const phase = (raw.phase ?? 'primary') as 'primary' | 'general';
     try {
-      raw = { ...raw, rivalRate: getOffice(officeIndex).rivalRate };
+      const o = getOffice(officeIndex);
+      raw = { ...raw, rivalRate: phase === 'primary' ? o.rivalRatePrimary : o.rivalRateGeneral };
     } catch {
       raw = { ...raw, rivalRate: 30 }; // fallback if office lookup fails
     }

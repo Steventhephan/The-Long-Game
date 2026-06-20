@@ -16,6 +16,11 @@ function rivalsForOffice(_officeIndex: number) {
   return CITY_COUNCIL_RIVALS;
 }
 
+function officeRivalRate(officeIndex: number, phase: 'primary' | 'general'): number {
+  const o = getOffice(officeIndex);
+  return phase === 'primary' ? o.rivalRatePrimary : o.rivalRateGeneral;
+}
+
 function freshRunState(): GameState {
   const office = getOffice(0);
   const skeleton: GameState = {
@@ -33,7 +38,7 @@ function freshRunState(): GameState {
       CITY_COUNCIL_BLOCS.map(b => [b.groupId, 1.0])
     ),
     officeIndex: 0,
-    rivalRate: office.rivalRate,
+    rivalRate: office.rivalRatePrimary,
     phase: 'primary',
     timerRemaining: BAL.generalTimerBase * BAL.primaryTimerRatio,
     isRunoff: false,
@@ -52,7 +57,7 @@ function freshRunState(): GameState {
   return initElection(
     skeleton, 0, 'primary',
     blocsForOffice(0), rivalsForOffice(0),
-    office.rivalRate,
+    office.rivalRatePrimary,
   );
 }
 
@@ -81,7 +86,7 @@ export function resetRun(state: GameState): GameState {
   return initElection(
     fresh, 0, 'primary',
     blocsForOffice(0), rivalsForOffice(0),
-    office.rivalRate,
+    office.rivalRatePrimary,
   );
 }
 
@@ -96,13 +101,12 @@ export function advanceElection(state: GameState): GameState {
     return resetRun(state);
   }
 
-  const office = getOffice(nextOffice);
   return initElection(
     { ...state, officeIndex: nextOffice, phase: nextPhase, electionResult: 'none' },
     nextOffice,
     nextPhase,
     blocsForOffice(nextOffice),
     rivalsForOffice(nextOffice),
-    office.rivalRate,
+    officeRivalRate(nextOffice, nextPhase),
   );
 }

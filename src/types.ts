@@ -79,8 +79,9 @@ export interface OfficeDef {
   generalPool: Num;
   primaryPool: Num;
   rivalCount: number;
-  rivalRate: number;  // TUNING TARGET: total rival voters/sec for this office
-  unlocks: string[];  // generator ids that first become available here
+  rivalRatePrimary: number;  // TUNING TARGET: rival voters/sec in the primary
+  rivalRateGeneral: number;  // TUNING TARGET: rival voters/sec in the general
+  unlocks: string[];         // generator ids that first become available here
 }
 
 export interface GeneratorDef {

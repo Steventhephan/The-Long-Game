@@ -5,9 +5,10 @@ function pool(index: number): number {
   return Math.round(BAL.poolBase * BAL.poolGrowth ** index);
 }
 
-// rivalRate is the total rival voters/sec for that office (TUNING TARGET for all).
+// rivalRatePrimary / rivalRateGeneral are TUNING TARGETs for all offices.
 // Calibration: rivalRate × leanMatchAvg(~0.825) ≈ expected player voters/sec at that tier.
-// Each office scales ~2.5× from the last; revisit during Phase 2 playtesting.
+// Primary and general can differ — generals tend to have a wider pool and longer timer,
+// so the rival may need a different rate to keep the same feel.
 export const OFFICES: OfficeDef[] = [
   {
     id: 'city_council',
@@ -17,7 +18,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(0),
     primaryPool: Math.round(pool(0) * BAL.primaryPoolRatio),
     rivalCount: 1,
-    rivalRate: 30,       // calibrated for 4 taps/sec human — do not change without re-testing Phase 1
+    rivalRatePrimary: 30,  // calibrated — primary feels right, do not change without re-testing
+    rivalRateGeneral: 26,  // reduced from 30: playtest showed 30 forced a runoff every general
     unlocks: ['canvasser', 'small_dollar_drive'],
   },
   {
@@ -28,7 +30,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(1),
     primaryPool: Math.round(pool(1) * BAL.primaryPoolRatio),
     rivalCount: 1,
-    rivalRate: 75,       // TUNING TARGET
+    rivalRatePrimary: 75,  // TUNING TARGET
+    rivalRateGeneral: 75,  // TUNING TARGET
     unlocks: ['phone_bank', 'email_fundraising'],
   },
   {
@@ -39,7 +42,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(2),
     primaryPool: Math.round(pool(2) * BAL.primaryPoolRatio),
     rivalCount: 2,
-    rivalRate: 190,      // TUNING TARGET
+    rivalRatePrimary: 190, // TUNING TARGET
+    rivalRateGeneral: 190, // TUNING TARGET
     unlocks: ['regional_office', 'donor_dinner'],
   },
   {
@@ -50,7 +54,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(3),
     primaryPool: Math.round(pool(3) * BAL.primaryPoolRatio),
     rivalCount: 2,
-    rivalRate: 475,      // TUNING TARGET
+    rivalRatePrimary: 475, // TUNING TARGET
+    rivalRateGeneral: 475, // TUNING TARGET
     unlocks: ['campaign_bus', 'bundler_network'],
   },
   {
@@ -61,7 +66,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(4),
     primaryPool: Math.round(pool(4) * BAL.primaryPoolRatio),
     rivalCount: 3,
-    rivalRate: 1200,     // TUNING TARGET
+    rivalRatePrimary: 1200, // TUNING TARGET
+    rivalRateGeneral: 1200, // TUNING TARGET
     unlocks: ['rally_tour', 'national_fundraising'],
   },
   {
@@ -72,7 +78,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(5),
     primaryPool: Math.round(pool(5) * BAL.primaryPoolRatio),
     rivalCount: 3,
-    rivalRate: 3000,     // TUNING TARGET
+    rivalRatePrimary: 3000, // TUNING TARGET
+    rivalRateGeneral: 3000, // TUNING TARGET
     unlocks: ['tv_ad_spot', 'corporate_sponsorships'],
   },
   {
@@ -83,7 +90,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(6),
     primaryPool: Math.round(pool(6) * BAL.primaryPoolRatio),
     rivalCount: 4,
-    rivalRate: 7500,     // TUNING TARGET
+    rivalRatePrimary: 7500, // TUNING TARGET
+    rivalRateGeneral: 7500, // TUNING TARGET
     unlocks: ['micro_targeting', 'lobbyist_alliance'],
   },
   {
@@ -94,7 +102,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(7),
     primaryPool: Math.round(pool(7) * BAL.primaryPoolRatio),
     rivalCount: 4,
-    rivalRate: 18500,    // TUNING TARGET
+    rivalRatePrimary: 18500, // TUNING TARGET
+    rivalRateGeneral: 18500, // TUNING TARGET
     unlocks: ['national_media_team', 'super_pac'],
   },
 ];
