@@ -27,7 +27,7 @@
     const dx = (Math.random() - 0.5) * spread;
     const id = nextFloaterId++;
 
-    floaters = [...floaters, { id, text: isCrit ? `★ CRIT! +${gained} ★` : `+${gained}`, isCrit, dx }];
+    floaters = [...floaters, { id, text: isCrit ? `⚡ +${gained}` : `+${gained}`, isCrit, dx }];
 
     const duration = isCrit ? 1200 : 750;
     setTimeout(() => { floaters = floaters.filter(f => f.id !== id); }, duration);
@@ -220,7 +220,7 @@
     z-index: 5;
     font-size: 1.4rem;
     font-weight: bold;
-    color: #4a9eff;
+    color: #a8d8ff;
     -webkit-text-stroke: 1.5px #000;
     pointer-events: none;
     white-space: nowrap;
@@ -228,20 +228,14 @@
   }
   .knock-feedback.crit {
     color: #f1c40f;
-    font-size: 1.85rem;
-    -webkit-text-stroke: 2px #000;
+    font-size: 1.6rem;
     text-shadow: 0 0 14px rgba(241, 196, 15, 0.7);
-    animation: crit-float 1.2s ease-out forwards;
+    animation: float-up 1.0s ease-out forwards;
   }
   /* --dx drives the horizontal drift; translateX(-50%) centres the origin */
   @keyframes float-up {
     from { opacity: 1; transform: translateX(calc(-50% + 0px))       translateY(0)    scale(1); }
     to   { opacity: 0; transform: translateX(calc(-50% + var(--dx))) translateY(-48px) scale(0.8); }
-  }
-  @keyframes crit-float {
-    0%   { opacity: 1; transform: translateX(calc(-50% + 0px))                       translateY(0)     scale(1.1); }
-    18%  { opacity: 1; transform: translateX(calc(-50% + calc(var(--dx) * 0.25)))    translateY(-12px) scale(1.3); }
-    100% { opacity: 0; transform: translateX(calc(-50% + var(--dx)))                 translateY(-52px) scale(0.85); }
   }
 
   .knock-btn {
