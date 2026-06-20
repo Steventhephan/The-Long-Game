@@ -162,8 +162,11 @@ export function knockDoors(state: GameState): GameState {
   const mult = isCrit ? BAL.critMultiplier : 1;
   const stack = computeStack(state);
 
-  const voterGain = PHASE1.tapVoters * mult * stack;
-  const cashGain = PHASE1.tapCash * mult * stack;
+  // Tap output scales with office so taps stay relevant as pools grow.
+  // Uses the same 1.4× factor as the timer, so tap:rival parity holds across offices.
+  const tapScale = BAL.timerGrowth ** state.officeIndex;
+  const voterGain = Math.round(PHASE1.tapVoters * tapScale) * mult * stack;
+  const cashGain  = Math.round(PHASE1.tapCash  * tapScale) * mult * stack;
 
   const blocs = cloneBlocs(state.blocs);
 
