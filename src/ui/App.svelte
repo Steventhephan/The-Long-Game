@@ -2,14 +2,15 @@
   import Header from './Header.svelte';
   import CampaignTab from './CampaignTab.svelte';
   import OperationTab from './OperationTab.svelte';
+  import PlatformTab from './PlatformTab.svelte';
   import ResultModal from './ResultModal.svelte';
   import { gameStore } from '../state/store';
 
-  type Tab = 'campaign' | 'operation';
+  type Tab = 'campaign' | 'operation' | 'platform';
   let activeTab: Tab = 'campaign';
 
-  // Operation is always available — generators moved here from Campaign tab.
   const operationUnlocked = true;
+  const platformUnlocked = true; // Stances matter from City Council onward
 </script>
 
 <div class="app-shell">
@@ -20,6 +21,8 @@
       <CampaignTab />
     {:else if activeTab === 'operation'}
       <OperationTab />
+    {:else if activeTab === 'platform'}
+      <PlatformTab />
     {/if}
   </main>
 
@@ -37,7 +40,11 @@
       on:click={() => activeTab = 'operation'}
       title={operationUnlocked ? '' : 'Buy a generator to unlock'}
     >Operation</button>
-    <button class="tab-btn locked" disabled title="Unlocks later">Platform</button>
+    <button
+      class="tab-btn"
+      class:active={activeTab === 'platform'}
+      on:click={() => activeTab = 'platform'}
+    >Platform</button>
     <button class="tab-btn locked" disabled title="Unlocks later">Legacy</button>
   </nav>
 

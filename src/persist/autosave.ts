@@ -64,17 +64,30 @@ function migrate(raw: Partial<GameState>): GameState {
   }
 
   if (version < 2) {
-    // v1 → v2: rivalRate added to GameState (per-office value, Phase 2).
-    // All v1 saves are at City Council (officeIndex 0) — patch in its rate.
+    // v1 → v2: rivalRate added.
     const officeIndex = (raw.officeIndex ?? 0);
     const phase = (raw.phase ?? 'primary') as 'primary' | 'general';
     try {
       const o = getOffice(officeIndex);
       raw = { ...raw, rivalRate: phase === 'primary' ? o.rivalRatePrimary : o.rivalRateGeneral };
     } catch {
-      raw = { ...raw, rivalRate: 30 }; // fallback if office lookup fails
+      raw = { ...raw, rivalRate: 18 };
     }
     version = 2;
+  }
+
+  if (version < 3) {
+    // v2 → v3: platform, flipFlopCounts, ideologyId added (Phase 3).
+    // Default platform to all-center; bloc support computed on load via defaultState merge.
+    if (!raw.platform || Object.keys(raw.platform).length === 0) {
+      raw = { ...raw, platform: {} }; // defaultState will fill with center stances
+    }
+    raw = {
+      ...raw,
+      flipFlopCounts: raw.flipFlopCounts ?? {},
+      ideologyId: raw.ideologyId ?? 'moderate',
+    };
+    version = 3;
   }
 
   // Merge with defaults so any future new fields get safe initial values.

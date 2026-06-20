@@ -1,28 +1,33 @@
 import type { GameState } from '../types';
-import { CITY_COUNCIL_BLOCS } from '../config/blocs';
+import { INTEREST_GROUPS } from '../config/blocs';
 import { CITY_COUNCIL_RIVALS } from '../config/rivals';
+import { ISSUES } from '../config/issues';
 import { BAL } from '../config/balance';
 import { getOffice, MAX_OFFICE_INDEX } from '../config/offices';
 import { initElection } from '../sim/election';
+import { computeAllBlocSupport, computePosition, eraForOffice, getIdeology } from '../sim/platform';
 
-export const SAVE_VERSION = 2;
-
-// Phase 2: all offices use the same 2 blocs. Phase 3 will introduce per-office bloc sets.
-function blocsForOffice(_officeIndex: number) {
-  return CITY_COUNCIL_BLOCS;
-}
-
-function rivalsForOffice(_officeIndex: number) {
-  return CITY_COUNCIL_RIVALS;
-}
+export const SAVE_VERSION = 3; // Phase 3: platform, flipFlopCounts, ideologyId
 
 function officeRivalRate(officeIndex: number, phase: 'primary' | 'general'): number {
   const o = getOffice(officeIndex);
   return phase === 'primary' ? o.rivalRatePrimary : o.rivalRateGeneral;
 }
 
+/** Default platform: all issues set to center. */
+function defaultPlatform(): Record<string, string> {
+  return Object.fromEntries(ISSUES.map(i => [i.id, 'center']));
+}
+
 function freshRunState(): GameState {
-  const office = getOffice(0);
+  const officeIndex = 0;
+  const phase = 'primary' as const;
+  const era = eraForOffice(officeIndex);
+  const platform = defaultPlatform();
+  const blocSupport = computeAllBlocSupport(platform, INTEREST_GROUPS, era);
+  const position = computePosition(platform, era);
+  const ideology = getIdeology(position);
+
   const skeleton: GameState = {
     version: SAVE_VERSION,
     rngSeed: (Date.now() & 0x7fffffff),
@@ -33,13 +38,13 @@ function freshRunState(): GameState {
     upgrades: [],
     charisma: 0,
     volunteers: 0,
-    platform: {},
-    blocSupport: Object.fromEntries(
-      CITY_COUNCIL_BLOCS.map(b => [b.groupId, 1.0])
-    ),
-    officeIndex: 0,
-    rivalRate: office.rivalRatePrimary,
-    phase: 'primary',
+    platform,
+    flipFlopCounts: {},
+    ideologyId: ideology.id,
+    blocSupport,
+    officeIndex,
+    rivalRate: getOffice(officeIndex).rivalRatePrimary,
+    phase,
     timerRemaining: BAL.generalTimerBase * BAL.primaryTimerRatio,
     isRunoff: false,
     blocs: [],
@@ -55,9 +60,9 @@ function freshRunState(): GameState {
   };
 
   return initElection(
-    skeleton, 0, 'primary',
-    blocsForOffice(0), rivalsForOffice(0),
-    office.rivalRatePrimary,
+    skeleton, officeIndex, phase,
+    INTEREST_GROUPS, CITY_COUNCIL_RIVALS,
+    officeRivalRate(officeIndex, phase),
   );
 }
 
@@ -73,7 +78,6 @@ export function resetRun(state: GameState): GameState {
     newPrestige += BAL.officeWeight(Math.floor(i / 2));
   }
 
-  const office = getOffice(0);
   const fresh: GameState = {
     ...defaultState(),
     prestige: newPrestige,
@@ -81,12 +85,17 @@ export function resetRun(state: GameState): GameState {
     achievements: state.achievements,
     globalMultiplier: state.globalMultiplier,
     rngSeed: (state.rngSeed + 1) | 0,
+    // Platform and ideology carry over (dynasty: new candidate, same family values)
+    platform: state.platform,
+    flipFlopCounts: state.flipFlopCounts,
+    ideologyId: state.ideologyId,
+    blocSupport: state.blocSupport,
   };
 
   return initElection(
     fresh, 0, 'primary',
-    blocsForOffice(0), rivalsForOffice(0),
-    office.rivalRatePrimary,
+    INTEREST_GROUPS, CITY_COUNCIL_RIVALS,
+    officeRivalRate(0, 'primary'),
   );
 }
 
@@ -96,17 +105,29 @@ export function advanceElection(state: GameState): GameState {
     state.phase === 'primary' ? 'general' : 'primary';
   const nextOffice = state.phase === 'general' ? state.officeIndex + 1 : state.officeIndex;
 
-  // Won the Presidency — game complete, start a new dynasty.
   if (nextOffice > MAX_OFFICE_INDEX) {
     return resetRun(state);
   }
 
+  // Recompute bloc support for the new office's era (new issues may unlock).
+  const era = eraForOffice(nextOffice);
+  const newBlocSupport = computeAllBlocSupport(state.platform, INTEREST_GROUPS, era);
+  const position = computePosition(state.platform, era);
+  const ideology = getIdeology(position);
+
   return initElection(
-    { ...state, officeIndex: nextOffice, phase: nextPhase, electionResult: 'none' },
+    {
+      ...state,
+      officeIndex: nextOffice,
+      phase: nextPhase,
+      electionResult: 'none',
+      blocSupport: newBlocSupport,
+      ideologyId: ideology.id,
+    },
     nextOffice,
     nextPhase,
-    blocsForOffice(nextOffice),
-    rivalsForOffice(nextOffice),
+    INTEREST_GROUPS,
+    CITY_COUNCIL_RIVALS,
     officeRivalRate(nextOffice, nextPhase),
   );
 }

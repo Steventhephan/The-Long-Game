@@ -24,6 +24,7 @@ export const BAL = {
   poolBase: 5000,
   poolGrowth: 4.3,
   runoffSeconds: 20,
+  flipFlopBaseCost: 50, // TUNING TARGET: cash cost of first stance flip; doubles each subsequent (×flipFlopCostGrowth)
 } as const;
 
 // Phase-1 tuning targets — adjust freely during playtesting.
