@@ -51,10 +51,12 @@
     flex-direction: column;
     max-width: 480px;
     margin: 0 auto;
+    overflow: hidden;
   }
 
   .tab-content {
     flex: 1;
+    min-height: 0; /* required: prevents flex children from expanding beyond the shell */
     overflow: hidden;
     display: flex;
     flex-direction: column;

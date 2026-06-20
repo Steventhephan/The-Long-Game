@@ -157,6 +157,7 @@
 <style>
   .operation-tab {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 12px 14px;
     display: flex;
