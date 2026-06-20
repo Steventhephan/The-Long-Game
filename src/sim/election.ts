@@ -1,5 +1,6 @@
 import { BAL, PHASE1 } from '../config/balance';
 import { GENERATORS } from '../config/generators';
+import { UPGRADES } from '../config/upgrades';
 import type { GameState, BlocState, RivalState, BlocStaticDef, RivalStaticDef, Era } from '../types';
 
 // TUNING TARGET: passive player auto-conversion rate per bloc (voters/sec).
@@ -87,6 +88,40 @@ export function timerDisplay(state: GameState): string {
 }
 
 // ---------------------------------------------------------------------------
+// computeUpgradeEffects — derive multipliers from purchased upgrades
+// ---------------------------------------------------------------------------
+
+export interface UpgradeEffects {
+  tapMult: number;
+  critChance: number;   // total crit chance (base + bonuses, capped)
+  fieldMult: number;
+  financeMult: number;
+}
+
+export function computeUpgradeEffects(state: GameState): UpgradeEffects {
+  let tapMult = 1;
+  let critBonus = 0;
+  let fieldMult = 1;
+  let financeMult = 1;
+
+  for (const u of UPGRADES) {
+    if (!state.upgrades.includes(u.id)) continue;
+    const e = u.effect;
+    if (e.kind === 'tapMult')     tapMult     *= e.value;
+    if (e.kind === 'critChance')  critBonus   += e.value;
+    if (e.kind === 'fieldMult')   fieldMult   *= e.value;
+    if (e.kind === 'financeMult') financeMult *= e.value;
+  }
+
+  return {
+    tapMult,
+    critChance: Math.min(BAL.critBaseChance + critBonus, BAL.critChanceCap),
+    fieldMult,
+    financeMult,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // initElection
 // ---------------------------------------------------------------------------
 
@@ -158,15 +193,14 @@ export function knockDoors(state: GameState): GameState {
   const rand = rng();
   const newSeed = (rand * 4294967296) | 0;
 
-  const isCrit = rand < BAL.critBaseChance;
-  const mult = isCrit ? BAL.critMultiplier : 1;
+  const effects = computeUpgradeEffects(state);
+  const isCrit = rand < effects.critChance;
+  const critMult = isCrit ? BAL.critMultiplier : 1;
   const stack = computeStack(state);
 
-  // Tap output scales with office so taps stay relevant as pools grow.
-  // Uses the same 1.4× factor as the timer, so tap:rival parity holds across offices.
   const tapScale = BAL.timerGrowth ** state.officeIndex;
-  const voterGain = Math.round(PHASE1.tapVoters * tapScale) * mult * stack;
-  const cashGain  = Math.round(PHASE1.tapCash  * tapScale) * mult * stack;
+  const voterGain = Math.round(PHASE1.tapVoters * tapScale) * effects.tapMult * critMult * stack;
+  const cashGain  = Math.round(PHASE1.tapCash   * tapScale) * effects.tapMult * critMult * stack;
 
   const blocs = cloneBlocs(state.blocs);
 
@@ -271,13 +305,14 @@ export function tick(state: GameState, dt: number): GameState {
   }
 
   // --- Generator passive output (all unlocked generators) ---
+  const effects = computeUpgradeEffects(state);
   let fieldVotersPerSec = 0;
   let cashPerSec = 0;
   for (const gen of GENERATORS) {
     const owned = state.generators[gen.id] ?? 0;
     if (owned === 0) continue;
-    if (gen.track === 'field')   fieldVotersPerSec += owned * gen.baseOutput;
-    if (gen.track === 'finance') cashPerSec        += owned * gen.baseOutput;
+    if (gen.track === 'field')   fieldVotersPerSec += owned * gen.baseOutput * effects.fieldMult;
+    if (gen.track === 'finance') cashPerSec        += owned * gen.baseOutput * effects.financeMult;
   }
 
   const fieldVoters = fieldVotersPerSec * stack * dt;

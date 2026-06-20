@@ -50,6 +50,25 @@ export interface GameState {
   electionResult: 'none' | 'win' | 'lose' | 'runoff_start' | 'runoff_win' | 'runoff_lose';
 }
 
+// --- Effect / upgrade types ---
+
+export type EffectSpec =
+  | { kind: 'tapMult';     value: number }   // multiplies tap voter + cash yield
+  | { kind: 'critChance';  value: number }   // additive bonus to base crit chance
+  | { kind: 'fieldMult';   value: number }   // multiplies all Field generator output
+  | { kind: 'financeMult'; value: number };  // multiplies all Finance generator output
+
+export interface UpgradeDef {
+  id: string;
+  name: string;
+  description: string;
+  category: 'tap' | 'field' | 'finance' | 'synergy' | 'ability' | 'group' | 'fork';
+  cost: Num;
+  effect: EffectSpec;
+  unlockRung: number;       // 0 = city council, 1 = mayor … available when officeIndex ≥ unlockRung
+  exclusiveGroup?: string;  // ideological forks: pick one, locks others (Phase 5)
+}
+
 // --- Config definition types ---
 
 export interface OfficeDef {
