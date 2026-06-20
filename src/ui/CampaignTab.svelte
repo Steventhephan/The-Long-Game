@@ -1,6 +1,8 @@
 <script lang="ts">
   import { gameStore, formatNum } from '../state/store';
-  import { knockDoors } from '../sim/election';
+  import { knockDoors, computeStack, computeUpgradeEffects } from '../sim/election';
+  import { GENERATORS } from '../config/generators';
+  import { BAL, PHASE1 } from '../config/balance';
   import { clearSave, saveGame } from '../persist/autosave';
   import { defaultState } from '../state/gameState';
 
@@ -38,7 +40,47 @@
     }
 
     if ('vibrate' in navigator) navigator.vibrate(isCrit ? [30, 10, 30] : 15);
+    recordTap();
   }
+
+  // Production rate display
+  const TAP_WINDOW_MS = 2000; // rolling window for tap rate estimate
+  let tapTimestamps: number[] = [];
+  let isActive = false;
+  let activeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function recordTap() {
+    const now = Date.now();
+    tapTimestamps = [...tapTimestamps.filter(t => now - t < TAP_WINDOW_MS), now];
+    isActive = true;
+    if (activeTimeout) clearTimeout(activeTimeout);
+    activeTimeout = setTimeout(() => { isActive = false; }, 600);
+  }
+
+  function formatRate(n: number): string {
+    if (n < 10) return n.toFixed(1);
+    return formatNum(n);
+  }
+
+  $: effects = computeUpgradeEffects(state);
+  $: stack = computeStack(state);
+
+  $: passiveVoterRate = GENERATORS
+    .filter(g => g.track === 'field')
+    .reduce((s, g) => s + (state.generators[g.id] ?? 0) * g.baseOutput * effects.fieldMult, 0) * stack;
+
+  $: passiveCashRate = GENERATORS
+    .filter(g => g.track === 'finance')
+    .reduce((s, g) => s + (state.generators[g.id] ?? 0) * g.baseOutput * effects.financeMult, 0) * stack;
+
+  $: rollingTapRate = tapTimestamps.length / (TAP_WINDOW_MS / 1000);
+  $: expectedCritMult = 1 + effects.critChance * (BAL.critMultiplier - 1);
+  $: tapScale = BAL.timerGrowth ** state.officeIndex;
+  $: tapVotersPerSec = Math.round(PHASE1.tapVoters * tapScale) * effects.tapMult * expectedCritMult * stack * rollingTapRate;
+  $: tapCashPerSec   = Math.round(PHASE1.tapCash   * tapScale) * effects.tapMult * expectedCritMult * stack * rollingTapRate;
+
+  $: displayVoterRate = passiveVoterRate + (isActive ? tapVotersPerSec : 0);
+  $: displayCashRate  = passiveCashRate  + (isActive ? tapCashPerSec  : 0);
 
   // Reset save
   let confirmReset = false;
@@ -78,6 +120,11 @@
       <span class="knock-label">KNOCK</span>
       <span class="knock-crit-hint">5% crit</span>
     </button>
+
+    <div class="rate-display" class:active={isActive}>
+      <span class="rate voters">👥 {formatRate(displayVoterRate)}/s</span>
+      <span class="rate cash">💰 ${formatRate(displayCashRate)}/s</span>
+    </div>
   </div>
 
   <!-- Reset save -->
@@ -177,6 +224,21 @@
   .knock-icon { font-size: 2.5rem; line-height: 1; }
   .knock-label { font-size: 0.85rem; letter-spacing: 0.12em; }
   .knock-crit-hint { font-size: 0.6rem; color: #888; letter-spacing: 0.05em; }
+
+  /* Production rate display */
+  .rate-display {
+    display: flex;
+    gap: 20px;
+    margin-top: 2px;
+  }
+  .rate {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #444;
+    transition: color 0.2s ease;
+  }
+  .rate-display.active .rate.voters { color: #4a9eff; }
+  .rate-display.active .rate.cash   { color: #c8a44a; }
 
   /* Blocs */
   .blocs-section { display: flex; flex-direction: column; gap: 6px; }
