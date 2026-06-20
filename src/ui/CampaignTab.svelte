@@ -11,6 +11,7 @@
   // Knock button
   let critFlash = false;
   let knockFeedback = '';
+  let feedbackKey = 0; // increments each tap to force animation reset
   let feedbackTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function onKnock() {
@@ -21,14 +22,13 @@
 
     const gained = Math.round(newState.voters - prev);
     critFlash = newState.lastCritHit;
-    knockFeedback = newState.lastCritHit
-      ? `+${gained} CRIT!`
-      : `+${gained}`;
+    knockFeedback = newState.lastCritHit ? `★ CRIT! +${gained} ★` : `+${gained}`;
+    feedbackKey += 1;
 
     if (feedbackTimeout) clearTimeout(feedbackTimeout);
-    feedbackTimeout = setTimeout(() => { knockFeedback = ''; critFlash = false; }, 600);
+    const duration = newState.lastCritHit ? 1200 : 700;
+    feedbackTimeout = setTimeout(() => { knockFeedback = ''; critFlash = false; }, duration);
 
-    // Haptic feedback where available
     if ('vibrate' in navigator) navigator.vibrate(newState.lastCritHit ? [30, 10, 30] : 15);
   }
 
@@ -77,7 +77,9 @@
   <!-- Knock button -->
   <div class="knock-section">
     {#if knockFeedback}
-      <div class="knock-feedback" class:crit={critFlash}>{knockFeedback}</div>
+      {#key feedbackKey}
+        <div class="knock-feedback" class:crit={critFlash}>{knockFeedback}</div>
+      {/key}
     {/if}
     <button
       class="knock-btn"
@@ -108,17 +110,17 @@
             <span class="gen-output">{formatNum(generatorOutput(def, owned))}/s</span>
           </div>
           <div class="gen-buttons">
-            <button
-              class="buy-btn"
-              disabled={!canBuy1}
-              on:click={() => buyGenerator(def, 1)}
-            >${formatNum(cost1)}</button>
             {#if maxQty > 1}
               <button
                 class="buy-btn buy-max"
                 on:click={() => buyMax(def)}
               >Max {maxQty}</button>
             {/if}
+            <button
+              class="buy-btn"
+              disabled={!canBuy1}
+              on:click={() => buyGenerator(def, 1)}
+            >${formatNum(cost1)}</button>
           </div>
         </div>
       {/each}
@@ -138,17 +140,17 @@
             <span class="gen-output">${formatNum(generatorOutput(def, owned))}/s</span>
           </div>
           <div class="gen-buttons">
-            <button
-              class="buy-btn"
-              disabled={!canBuy1}
-              on:click={() => buyGenerator(def, 1)}
-            >${formatNum(cost1)}</button>
             {#if maxQty > 1}
               <button
                 class="buy-btn buy-max"
                 on:click={() => buyMax(def)}
               >Max {maxQty}</button>
             {/if}
+            <button
+              class="buy-btn"
+              disabled={!canBuy1}
+              on:click={() => buyGenerator(def, 1)}
+            >${formatNum(cost1)}</button>
           </div>
         </div>
       {/each}
@@ -203,17 +205,28 @@
   }
   .knock-feedback {
     position: absolute;
-    top: -28px;
-    font-size: 1rem;
+    top: -36px;
+    font-size: 1.05rem;
     font-weight: bold;
     color: #4a9eff;
     pointer-events: none;
-    animation: float-up 0.6s ease-out forwards;
+    white-space: nowrap;
+    animation: float-up 0.7s ease-out forwards;
   }
-  .knock-feedback.crit { color: #f1c40f; font-size: 1.3rem; }
+  .knock-feedback.crit {
+    color: #f1c40f;
+    font-size: 1.45rem;
+    text-shadow: 0 0 12px rgba(241, 196, 15, 0.8);
+    animation: crit-float 1.2s ease-out forwards;
+  }
   @keyframes float-up {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(-30px); }
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(-36px) scale(0.85); }
+  }
+  @keyframes crit-float {
+    0%   { opacity: 1; transform: translateY(0) scale(1.1); }
+    15%  { opacity: 1; transform: translateY(-8px) scale(1.25); }
+    100% { opacity: 0; transform: translateY(-52px) scale(0.9); }
   }
 
   .knock-btn {
@@ -230,11 +243,16 @@
     justify-content: center;
     gap: 6px;
     touch-action: none;
-    transition: transform 0.08s, background 0.08s;
+    box-shadow: 0 0 0 0 rgba(241, 196, 15, 0);
+    transition: transform 0.08s, background 0.1s, border-color 0.1s, box-shadow 0.15s;
     user-select: none;
   }
   .knock-btn:active { transform: scale(0.93); background: #263554; }
-  .knock-btn.crit { border-color: #f1c40f; background: #2a2210; }
+  .knock-btn.crit {
+    border-color: #f1c40f;
+    background: #2a2210;
+    box-shadow: 0 0 22px 6px rgba(241, 196, 15, 0.4);
+  }
   .knock-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .knock-icon { font-size: 2.5rem; line-height: 1; }
   .knock-label { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; }

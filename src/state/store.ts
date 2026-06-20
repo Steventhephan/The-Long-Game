@@ -2,7 +2,7 @@ import { writable, derived } from 'svelte/store';
 import type { GameState } from '../types';
 import { defaultState } from './gameState';
 import { loadSave } from '../persist/autosave';
-import { playerPct, timerDisplay, totalPool } from '../sim/election';
+import { playerPct, totalPool } from '../sim/election';
 
 function createGameStore() {
   const { subscribe, set, update } = writable<GameState>(defaultState());
@@ -22,7 +22,18 @@ export const displayPct = derived(gameStore, $s =>
   (playerPct($s) * 100).toFixed(1) + '%'
 );
 
-export const displayTimer = derived(gameStore, $s => timerDisplay($s));
+// Thematic timer: 1 second = 1 campaign day.
+export const displayTimer = derived(gameStore, $s => {
+  const days = Math.ceil(Math.max(0, $s.timerRemaining));
+  if ($s.isRunoff) return days <= 1 ? 'Final day!' : `${days} days`;
+  if (days <= 0) return 'Election Day!';
+  return `${days} days`;
+});
+
+export const displayTimerLabel = derived(gameStore, $s => {
+  if ($s.isRunoff) return 'Runoff';
+  return 'Days to Election';
+});
 
 export const displayCash = derived(gameStore, $s => formatNum($s.cash));
 

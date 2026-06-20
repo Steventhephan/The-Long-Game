@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { gameStore, displayPct, displayTimer, displayCash } from '../state/store';
+  import { gameStore, displayPct, displayTimer, displayTimerLabel, displayCash } from '../state/store';
   import { playerPct, totalPool } from '../sim/election';
   import { CITY_COUNCIL_RIVALS } from '../config/rivals';
 
@@ -35,8 +35,8 @@
 
   <div class="stats-row">
     <div class="stat">
-      <span class="stat-label">Timer</span>
-      <span class="stat-value timer" class:urgent={state.timerRemaining < 15}>
+      <span class="stat-label">{$displayTimerLabel}</span>
+      <span class="stat-value timer" class:urgent={state.timerRemaining < 10}>
         {$displayTimer}
       </span>
     </div>
