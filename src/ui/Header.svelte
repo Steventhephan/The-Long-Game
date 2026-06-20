@@ -23,7 +23,7 @@
     <div class="progress-bar-wrap">
       <div class="progress-bar">
         <div class="fill player" style="width: {Math.min(pct * 100, 100)}%"></div>
-        <div class="fill rival" style="width: {Math.min(rivalPct, 100)}%; margin-left: {Math.min(pct * 100, 100)}%"></div>
+        <div class="fill rival" style="width: {Math.min(rivalPct, 100)}%"></div>
         <div class="threshold-line"></div>
       </div>
       <div class="progress-labels">
@@ -85,7 +85,7 @@
   }
   .fill { position: absolute; top: 0; height: 100%; border-radius: 7px; transition: width 0.15s ease; }
   .fill.player { background: #4a9eff; left: 0; }
-  .fill.rival  { background: #e74c3c; }
+  .fill.rival  { background: #e74c3c; right: 0; }
   .threshold-line {
     position: absolute;
     left: 50%;

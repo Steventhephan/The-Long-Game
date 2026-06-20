@@ -163,14 +163,35 @@ export function knockDoors(state: GameState): GameState {
   const cashGain = PHASE1.tapCash * mult * stack;
 
   const blocs = cloneBlocs(state.blocs);
-  const totalUndecided = sumUndecided(blocs);
 
-  if (totalUndecided > 0 && voterGain > 0) {
-    for (const bloc of blocs) {
-      const portion = (bloc.undecided / totalUndecided) * voterGain;
-      const converted = Math.min(portion, bloc.undecided);
-      bloc.undecided -= converted;
-      bloc.player += converted;
+  if (voterGain > 0) {
+    // Phase 1: take from undecided proportionally across blocs.
+    const totalUndecided = sumUndecided(blocs);
+    let remaining = voterGain;
+    if (totalUndecided > 0) {
+      for (const bloc of blocs) {
+        const portion = (bloc.undecided / totalUndecided) * voterGain;
+        const take = Math.min(portion, bloc.undecided);
+        bloc.undecided -= take;
+        bloc.player += take;
+        remaining -= take;
+      }
+    }
+    // Phase 2: steal from rivals proportionally if demand exceeded undecided.
+    if (remaining > 0) {
+      const totalRival = blocs.reduce(
+        (s, b) => s + b.rivals.reduce((r, v) => r + v, 0), 0
+      );
+      if (totalRival > 0) {
+        for (const bloc of blocs) {
+          for (let ri = 0; ri < bloc.rivals.length; ri++) {
+            const portion = (bloc.rivals[ri] / totalRival) * remaining;
+            const steal = Math.min(portion, bloc.rivals[ri]);
+            bloc.rivals[ri] -= steal;
+            bloc.player += steal;
+          }
+        }
+      }
     }
   }
 
@@ -207,21 +228,39 @@ export function tick(state: GameState, dt: number): GameState {
   const blocCount = blocs.length;
 
   // --- Player passive + rival conversion per bloc ---
+  // Each candidate drains undecided first; any remaining demand steals from
+  // the opponent's decided voters at the same rate (no efficiency penalty).
   for (const bloc of blocs) {
     const support = state.blocSupport[bloc.groupId] ?? 1.0;
     const playerRate = BASE_CONV * support * stack;
-    const playerConverted = Math.min(playerRate * dt, bloc.undecided);
-    bloc.undecided -= playerConverted;
-    bloc.player += playerConverted;
+    const playerDemand = playerRate * dt;
+    const playerFromUndecided = Math.min(playerDemand, bloc.undecided);
+    bloc.undecided -= playerFromUndecided;
+    bloc.player += playerFromUndecided;
+    let playerOverflow = playerDemand - playerFromUndecided;
+    for (let ri = 0; ri < rivals.length; ri++) {
+      if (rivals[ri].eliminated || playerOverflow <= 0) continue;
+      const steal = Math.min(playerOverflow, bloc.rivals[ri]);
+      bloc.rivals[ri] -= steal;
+      bloc.player += steal;
+      playerOverflow -= steal;
+    }
 
     for (let ri = 0; ri < rivals.length; ri++) {
       const rival = rivals[ri];
       if (rival.eliminated) continue;
       const leanMatch = 0.5 + 0.5 * (1 - Math.abs(rival.lean - bloc.lean) / 2);
       const rivalRate = (PHASE1.rivalBaseRate / blocCount) * leanMatch;
-      const rivalConverted = Math.min(rivalRate * dt, bloc.undecided);
-      bloc.undecided -= rivalConverted;
-      bloc.rivals[ri] += rivalConverted;
+      const rivalDemand = rivalRate * dt;
+      const rivalFromUndecided = Math.min(rivalDemand, bloc.undecided);
+      bloc.undecided -= rivalFromUndecided;
+      bloc.rivals[ri] += rivalFromUndecided;
+      const rivalOverflow = rivalDemand - rivalFromUndecided;
+      if (rivalOverflow > 0) {
+        const steal = Math.min(rivalOverflow, bloc.player);
+        bloc.player -= steal;
+        bloc.rivals[ri] += steal;
+      }
     }
   }
 
@@ -230,14 +269,23 @@ export function tick(state: GameState, dt: number): GameState {
   const votersPerSec = fieldOwned * PHASE1.canvasserOutput * stack;
   const fieldVoters = votersPerSec * dt;
   if (fieldVoters > 0) {
-    let bestBloc: BlocState | null = null;
-    for (const bloc of blocs) {
-      if (bestBloc === null || bloc.undecided > bestBloc.undecided) bestBloc = bloc;
-    }
-    if (bestBloc !== null && bestBloc.undecided > 0) {
-      const converted = Math.min(fieldVoters, bestBloc.undecided);
-      bestBloc.undecided -= converted;
-      bestBloc.player += converted;
+    // Target the bloc with the most undecided; fall back to most rival voters.
+    let bestBloc = blocs.reduce((best, b) => {
+      const bVal = b.undecided > 0 ? b.undecided : -(b.rivals.reduce((s, v) => s + v, 0));
+      const bestVal = best.undecided > 0 ? best.undecided : -(best.rivals.reduce((s, v) => s + v, 0));
+      return bVal > bestVal ? b : best;
+    }, blocs[0]);
+
+    const fromUndecided = Math.min(fieldVoters, bestBloc.undecided);
+    bestBloc.undecided -= fromUndecided;
+    bestBloc.player += fromUndecided;
+    let overflow = fieldVoters - fromUndecided;
+    for (let ri = 0; ri < rivals.length; ri++) {
+      if (rivals[ri].eliminated || overflow <= 0) continue;
+      const steal = Math.min(overflow, bestBloc.rivals[ri]);
+      bestBloc.rivals[ri] -= steal;
+      bestBloc.player += steal;
+      overflow -= steal;
     }
   }
 
