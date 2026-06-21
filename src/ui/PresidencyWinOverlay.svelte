@@ -82,6 +82,7 @@
     flex-direction: column;
     align-items: stretch;
     overflow-y: auto;
+    overflow-x: hidden;
     animation: pres-fade-in 0.5s ease;
   }
   @keyframes pres-fade-in {

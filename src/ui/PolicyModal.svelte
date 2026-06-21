@@ -231,7 +231,7 @@
 
   /* Issue list */
   .issue-list {
-    overflow-y: auto; flex: 1;
+    overflow-y: auto; overflow-x: hidden; flex: 1;
     display: flex; flex-direction: column;
   }
   .issue-row {
@@ -257,7 +257,7 @@
 
   /* Stance cards */
   .stance-list {
-    overflow-y: auto; flex: 1;
+    overflow-y: auto; overflow-x: hidden; flex: 1;
     padding: 8px 10px;
     display: flex; flex-direction: column; gap: 7px;
   }

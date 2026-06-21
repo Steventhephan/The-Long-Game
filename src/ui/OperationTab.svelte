@@ -182,6 +182,7 @@
     position: absolute;
     inset: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 8px 12px;
     display: flex;
     flex-direction: column;

@@ -163,7 +163,7 @@
   }
 
   .choice-list {
-    overflow-y: auto; flex: 1;
+    overflow-y: auto; overflow-x: hidden; flex: 1;
     padding: 8px 10px;
     display: flex; flex-direction: column; gap: 6px;
   }
