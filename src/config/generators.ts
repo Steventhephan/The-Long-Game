@@ -3,17 +3,18 @@ import { BAL } from './balance';
 
 // Base costs and outputs follow the spec formulas (all TUNING TARGETs):
 //   baseCost(rung k)   = BASE_COST_0  × 8^k
-//   baseOutput(rung k) = BASE_OUTPUT_0 × 7^k
+//   baseOutput(rung k) = BASE_OUTPUT_0 × BAL.rungOutputMultiplier^k
 // baseCost0 = 75 (tuned for ~4 taps/sec human — see Phase 1 Build Log).
-// baseOutput0 = 2.0 (voters/sec for Field, cash/sec for Finance).
+// rungOutputMultiplier reduced 7→6 (Phase 7.5): 7× compounding outpaced rival scaling,
+// letting a single higher-rung generator trivially dominate rivals at the same tier.
 
 const BASE_COST_0   = 75;
-const FIELD_OUT_0   = 5.0;  // TUNING TARGET: raised from 2.0 — each unit more impactful to offset tapVoters reduction
-const FINANCE_OUT_0 = 2.0;  // TUNING TARGET: unchanged — cash flow stays the same
+const FIELD_OUT_0   = 5.0;  // TUNING TARGET: voters/sec at rung 0
+const FINANCE_OUT_0 = 2.0;  // TUNING TARGET: cash/sec at rung 0
 
 function cost(rung: number)          { return Math.round(BASE_COST_0 * 8 ** rung); }
-function fieldOutput(rung: number)   { return parseFloat((FIELD_OUT_0   * 7 ** rung).toPrecision(4)); }
-function financeOutput(rung: number) { return parseFloat((FINANCE_OUT_0 * 7 ** rung).toPrecision(4)); }
+function fieldOutput(rung: number)   { return parseFloat((FIELD_OUT_0   * BAL.rungOutputMultiplier ** rung).toPrecision(4)); }
+function financeOutput(rung: number) { return parseFloat((FINANCE_OUT_0 * BAL.rungOutputMultiplier ** rung).toPrecision(4)); }
 
 const OFFICE_IDS = [
   'city_council', 'mayor', 'county_council', 'county_executive',
