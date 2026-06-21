@@ -1,5 +1,6 @@
 import type { GameState, RunHistoryEntry } from '../types';
 import { INTEREST_GROUPS } from '../config/blocs';
+import { GENERATORS } from '../config/generators';
 import { getRivals } from '../config/rivals';
 import { ISSUES } from '../config/issues';
 import { BAL } from '../config/balance';
@@ -444,4 +445,60 @@ export function buyPerk(state: GameState, perkId: string): GameState | null {
   }
 
   return { ...newState, achievements };
+}
+
+// ---------------------------------------------------------------------------
+// DEV ONLY — skip directly to any election with proportional starting resources
+// ---------------------------------------------------------------------------
+
+export function devSkipToElection(
+  state: GameState,
+  targetOffice: number,
+  targetPhase: 'primary' | 'general',
+): GameState {
+  const era = eraForOffice(targetOffice);
+  const newBlocSupport = computeAllBlocSupport(
+    state.platform, state.flipFlopTrustMultipliers, INTEREST_GROUPS, era,
+  );
+  const position = computePosition(state.platform, era);
+  const ideology = getIdeology(position);
+
+  // Pre-buy 2 of each generator available at this office (both tracks).
+  const generators: Record<string, number> = {};
+  for (const g of GENERATORS) {
+    if (g.rung <= targetOffice) generators[g.id] = 2;
+  }
+
+  // Starting cash: 5× the base cost of the highest-rung available generator.
+  const startCash = Math.round(75 * Math.pow(8, targetOffice) * 5);
+
+  const skeleton: GameState = {
+    ...state,
+    officeIndex: targetOffice,
+    phase: targetPhase,
+    cash: startCash,
+    voters: 0,
+    generators,
+    upgrades: [],
+    charisma: 0,
+    volunteers: 0,
+    isRunoff: false,
+    blocSupport: newBlocSupport,
+    ideologyId: ideology.id,
+    pendingMinigame: null,
+    minigameCooldowns: {},
+    abilityCooldowns: {},
+    activeEvent: null,
+    eventModifiers: [],
+    eventCooldown: 0,
+    isPaused: false,
+    electionResult: 'none',
+    lastCritHit: false,
+  };
+
+  return initElection(
+    skeleton, targetOffice, targetPhase,
+    INTEREST_GROUPS, getRivals(targetOffice, targetPhase),
+    officeRivalRate(targetOffice, targetPhase),
+  );
 }

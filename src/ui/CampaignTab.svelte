@@ -7,7 +7,8 @@
   import { abilitiesForOffice, getAbility } from '../config/abilities';
   import { TOWN_HALLS, FUNDRAISING_GALAS } from '../config/minigames';
   import { clearSave, saveGame } from '../persist/autosave';
-  import { defaultState, activateAbility, openOptionalMinigame } from '../state/gameState';
+  import { defaultState, activateAbility, openOptionalMinigame, devSkipToElection } from '../state/gameState';
+  import { getOffice, MAX_OFFICE_INDEX } from '../config/offices';
   import { playTap, playCrit } from '../audio/sounds';
 
   $: state = $gameStore;
@@ -109,6 +110,25 @@
       clearSave();
       gameStore.set(defaultState());
     }
+  }
+
+  // Dev skip-to-election dropdown
+  const devStages = Array.from({ length: MAX_OFFICE_INDEX + 1 }, (_, i) => {
+    const name = getOffice(i).name;
+    return [
+      { value: `${i}:primary`,  label: `${name} — Primary` },
+      { value: `${i}:general`,  label: `${name} — General` },
+    ];
+  }).flat();
+
+  function onDevSkip(e: Event) {
+    const val = (e.target as HTMLSelectElement).value;
+    if (!val) return;
+    const [offStr, phase] = val.split(':');
+    const next = devSkipToElection(state, parseInt(offStr, 10), phase as 'primary' | 'general');
+    gameStore.set(next);
+    saveGame(next);
+    (e.target as HTMLSelectElement).value = '';
   }
 
   // Abilities (State era+, officeIndex >= 4)
@@ -335,11 +355,17 @@
     </div>
   {/if}
 
-  <!-- Reset save -->
+  <!-- Reset save + dev skip -->
   <div class="reset-section">
     <button class="reset-btn" class:confirm={confirmReset} on:click={onResetClick}>
       {confirmReset ? '⚠️ Tap again to confirm reset' : 'Reset Save'}
     </button>
+    <select class="dev-skip" on:change={onDevSkip} title="DEV: skip to election">
+      <option value="">⚙ Skip to…</option>
+      {#each devStages as stage}
+        <option value={stage.value}>{stage.label}</option>
+      {/each}
+    </select>
   </div>
 
   <!-- Bloc breakdown -->
@@ -596,7 +622,18 @@
   .target-btn.rival-target { border-color: #7a2a2a; color: #e47a7a; }
   .target-btn.rival-target:active { background: #3a2020; }
 
-  .reset-section { display: flex; justify-content: center; padding-top: 8px; }
+  .reset-section { display: flex; justify-content: center; align-items: center; gap: 8px; padding-top: 8px; flex-wrap: wrap; }
+  .dev-skip {
+    background: #130E09;
+    border: 1px solid #2E1E1E;
+    color: #4A3030;
+    border-radius: 4px;
+    padding: 5px 6px;
+    font-family: inherit;
+    font-size: 0.62rem;
+    cursor: pointer;
+  }
+  .dev-skip:focus { outline: 1px solid #5a3a3a; color: #886666; }
   .reset-btn {
     background: transparent;
     border: 1px solid #3a2a2a;
