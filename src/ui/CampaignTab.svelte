@@ -6,9 +6,8 @@
   import { blocsUnlockedForOffice, INTEREST_GROUPS } from '../config/blocs';
   import { abilitiesForOffice, getAbility } from '../config/abilities';
   import { TOWN_HALLS, FUNDRAISING_GALAS } from '../config/minigames';
-  import { clearSave, saveGame } from '../persist/autosave';
-  import { defaultState, activateAbility, openOptionalMinigame, devSkipToElection } from '../state/gameState';
-  import { getOffice, MAX_OFFICE_INDEX } from '../config/offices';
+  import { saveGame } from '../persist/autosave';
+  import { activateAbility, openOptionalMinigame } from '../state/gameState';
   import { playTap, playCrit } from '../audio/sounds';
 
   $: state = $gameStore;
@@ -95,41 +94,6 @@
 
   $: displayVoterRate = passiveVoterRate + (isActive ? tapVotersPerSec : 0);
   $: displayCashRate  = passiveCashRate  + (isActive ? tapCashPerSec  : 0);
-
-  // Reset save
-  let confirmReset = false;
-  let confirmTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  function onResetClick() {
-    if (!confirmReset) {
-      confirmReset = true;
-      confirmTimeout = setTimeout(() => { confirmReset = false; }, 3000);
-    } else {
-      if (confirmTimeout) clearTimeout(confirmTimeout);
-      confirmReset = false;
-      clearSave();
-      gameStore.set(defaultState());
-    }
-  }
-
-  // Dev skip-to-election dropdown
-  const devStages = Array.from({ length: MAX_OFFICE_INDEX + 1 }, (_, i) => {
-    const name = getOffice(i).name;
-    return [
-      { value: `${i}:primary`,  label: `${name} — Primary` },
-      { value: `${i}:general`,  label: `${name} — General` },
-    ];
-  }).flat();
-
-  function onDevSkip(e: Event) {
-    const val = (e.target as HTMLSelectElement).value;
-    if (!val) return;
-    const [offStr, phase] = val.split(':');
-    const next = devSkipToElection(state, parseInt(offStr, 10), phase as 'primary' | 'general');
-    gameStore.set(next);
-    saveGame(next);
-    (e.target as HTMLSelectElement).value = '';
-  }
 
   // Abilities (State era+, officeIndex >= 4)
   $: isStateEra = state.officeIndex >= 4;
@@ -355,19 +319,6 @@
     </div>
   {/if}
 
-  <!-- Reset save + dev skip -->
-  <div class="reset-section">
-    <button class="reset-btn" class:confirm={confirmReset} on:click={onResetClick}>
-      {confirmReset ? '⚠️ Tap again to confirm reset' : 'Reset Save'}
-    </button>
-    <select class="dev-skip" on:change={onDevSkip} title="DEV: skip to election">
-      <option value="">⚙ Skip to…</option>
-      {#each devStages as stage}
-        <option value={stage.value}>{stage.label}</option>
-      {/each}
-    </select>
-  </div>
-
   <!-- Bloc breakdown -->
   <div class="blocs-section" class:celebrating={isWin}>
     <div class="section-label blocs-header">
@@ -408,9 +359,11 @@
 
   /* Knock button */
   .knock-section {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     position: relative;
   }
