@@ -143,10 +143,7 @@
       {@const pool = bloc?.totalVoters ?? 0}
       {@const playerShare = pool > 0 ? (bloc?.player ?? 0) / pool : 0}
       {@const rivalShare = pool > 0 ? ((bloc?.rivals[0] ?? 0)) / pool : 0}
-      {@const weight = state.phase === 'primary' ? group.primaryWeight : group.generalWeight}
-      {@const tier = weight >= 3 ? 'key' : weight >= 2 ? 'med' : 'low'}
-      <div class="bloc-row" class:bloc-low={tier === 'low'}>
-        <span class="bloc-key-star" class:visible={tier === 'key'}>⭐</span>
+      <div class="bloc-row">
         <span class="bloc-name" title={group.name}>{group.shortName}</span>
         <div class="bloc-bar">
           <div class="bloc-fill you" style="width:{playerShare*100}%"></div>
@@ -155,7 +152,6 @@
         <span class="bloc-pct">{(playerShare*100).toFixed(0)}%</span>
       </div>
     {/each}
-    <div class="blocs-legend">⭐ key bloc this phase</div>
   </div>
 </div>
 
@@ -164,10 +160,10 @@
     position: absolute;
     inset: 0;
     overflow-y: auto;
-    padding: 16px 14px;
+    padding: 10px 12px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
   }
 
   /* Knock button */
@@ -175,7 +171,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     position: relative;
   }
   .knock-feedback {
@@ -204,9 +200,9 @@
   }
 
   .knock-btn {
-    width: 160px; height: 160px;
+    width: 120px; height: 120px;
     border-radius: 50%;
-    border: 4px solid #c8a44a;
+    border: 3px solid #c8a44a;
     background: #1e2a4a;
     color: #f0ece4;
     font-family: inherit;
@@ -215,7 +211,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
     touch-action: none;
     box-shadow: 0 0 0 0 rgba(241, 196, 15, 0);
     transition: transform 0.08s, background 0.1s, border-color 0.1s, box-shadow 0.15s;
@@ -225,21 +221,21 @@
   .knock-btn.crit {
     border-color: #f1c40f;
     background: #2a2210;
-    box-shadow: 0 0 22px 6px rgba(241, 196, 15, 0.4);
+    box-shadow: 0 0 18px 5px rgba(241, 196, 15, 0.4);
   }
   .knock-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .knock-icon { font-size: 2.5rem; line-height: 1; }
-  .knock-label { font-size: 0.85rem; letter-spacing: 0.12em; }
-  .knock-crit-hint { font-size: 0.6rem; color: #888; letter-spacing: 0.05em; }
+  .knock-icon { font-size: 1.8rem; line-height: 1; }
+  .knock-label { font-size: 0.72rem; letter-spacing: 0.12em; }
+  .knock-crit-hint { font-size: 0.55rem; color: #888; letter-spacing: 0.05em; }
 
   /* Production rate display */
   .rate-display {
     display: flex;
-    gap: 20px;
-    margin-top: 2px;
+    gap: 14px;
+    margin-top: 1px;
   }
   .rate {
-    font-size: 0.8rem;
+    font-size: 0.68rem;
     font-weight: bold;
     color: #444;
     transition: color 0.2s ease;
@@ -248,45 +244,30 @@
   .rate-display.active .rate.cash   { color: #c8a44a; }
 
   /* Blocs */
-  .blocs-section { display: flex; flex-direction: column; gap: 4px; }
+  .blocs-section { display: flex; flex-direction: column; gap: 3px; }
   .section-label {
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
-    color: #c8a44a; border-top: 1px solid #2a2a3e; padding-top: 4px;
-    margin-bottom: 2px;
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #c8a44a; border-top: 1px solid #2a2a3e; padding-top: 3px;
+    margin-bottom: 1px;
   }
-  .bloc-row { display: flex; align-items: center; gap: 5px; transition: opacity 0.2s; }
-  .bloc-row.bloc-low { opacity: 0.38; }
-
-  .bloc-key-star {
-    font-size: 0.55rem;
-    width: 12px;
-    min-width: 12px;
-    text-align: center;
-    visibility: hidden;
-    line-height: 1;
-  }
-  .bloc-key-star.visible { visibility: visible; }
+  .bloc-row { display: flex; align-items: center; gap: 4px; }
 
   .bloc-name {
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     color: #aaa;
-    width: 84px;
-    min-width: 84px;
-    max-width: 84px;
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     flex-shrink: 0;
   }
-  .bloc-row:not(.bloc-low) .bloc-name { color: #c8c8c8; }
-
-  .bloc-bar { flex: 1; height: 8px; background: #3a3a5a; border-radius: 4px; overflow: hidden; position: relative; }
-  .bloc-fill { position: absolute; top: 0; height: 100%; transition: width 0.2s; border-radius: 4px; }
+  .bloc-bar { flex: 1; height: 5px; background: #3a3a5a; border-radius: 3px; overflow: hidden; position: relative; }
+  .bloc-fill { position: absolute; top: 0; height: 100%; transition: width 0.2s; border-radius: 3px; }
   .bloc-fill.you   { left: 0;  background: #4a9eff; }
   .bloc-fill.rival { right: 0; background: #e74c3c; }
-  .bloc-pct { font-size: 0.68rem; color: #4a9eff; min-width: 28px; text-align: right; }
-
-  .blocs-legend { font-size: 0.58rem; color: #555; margin-top: 2px; }
+  .bloc-pct { font-size: 0.6rem; color: #4a9eff; min-width: 24px; text-align: right; }
 
   .reset-section { display: flex; justify-content: center; padding-top: 8px; }
   .reset-btn {

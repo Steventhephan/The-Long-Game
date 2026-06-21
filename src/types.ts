@@ -1,7 +1,8 @@
 export type Num = number; // swap to Decimal later if needed
 export type Era = 'local' | 'county' | 'state' | 'federal';
 export type Track = 'field' | 'finance';
-export type Scalar = -1 | 0 | 1;
+export type Scalar = -1 | -0.5 | 0 | 0.5 | 1;   // stance scalars (5 positions)
+export type PreferredScalar = -1 | 0 | 1;          // interest group preferences (3 positions)
 
 export interface BlocState {
   groupId: string;
@@ -30,10 +31,11 @@ export interface GameState {
   upgrades: string[];
   charisma: number;
   volunteers: Num;
-  platform: Record<string, string>;         // issueId → stanceId ('left'|'center'|'right')
-  flipFlopCounts: Record<string, number>;   // issueId → number of stance changes
-  ideologyId: string;                       // current ideology designation id
-  blocSupport: Record<string, number>;      // groupId → support multiplier (0.5–3.0)
+  platform: Record<string, string>;                    // issueId → StanceId
+  flipFlopCounts: Record<string, number>;              // issueId → number of changes made
+  flipFlopTrustMultipliers: Record<string, number>;    // issueId → effectiveness multiplier (1.0 decaying)
+  ideologyId: string;
+  blocSupport: Record<string, number>;                 // groupId → support multiplier (0.5–3.0)
   officeIndex: number;
   rivalRate: number;
   phase: 'primary' | 'general';
@@ -50,6 +52,7 @@ export interface GameState {
 
   // transient UI signals — not persisted:
   lastCritHit: boolean;
+  isPaused: boolean;   // true while Promise modal is open; halts tick()
   electionResult: 'none' | 'win' | 'lose' | 'runoff_start' | 'runoff_win' | 'runoff_lose';
 }
 
@@ -74,9 +77,13 @@ export interface UpgradeDef {
 
 // --- Platform / policy types ---
 
+export type StanceId = 'far_left' | 'center_left' | 'center' | 'center_right' | 'far_right';
+
 export interface StanceDef {
-  id: 'left' | 'center' | 'right';
-  label: string;
+  id: StanceId;
+  label: string;       // axis label: "Far Left", "Center-Left", etc.
+  title: string;       // policy name shown on card
+  description: string; // roleplay flavor shown on card
   scalar: Scalar;
 }
 
@@ -84,7 +91,7 @@ export interface IssueDef {
   id: string;
   name: string;
   unlockEra: Era;
-  stances: [StanceDef, StanceDef, StanceDef]; // always [left, center, right]
+  stances: [StanceDef, StanceDef, StanceDef, StanceDef, StanceDef]; // L, CL, C, CR, R
 }
 
 export interface IdeologyDef {
@@ -98,7 +105,7 @@ export interface IdeologyDef {
 
 export interface IssuePriority {
   issueId: string;
-  preferredScalar: Scalar;
+  preferredScalar: PreferredScalar; // groups have clear L/C/R preferences
 }
 
 // --- Config definition types ---

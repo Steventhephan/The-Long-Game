@@ -159,84 +159,84 @@
     position: absolute;
     inset: 0;
     overflow-y: auto;
-    padding: 12px 14px;
+    padding: 8px 12px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 10px;
   }
 
   /* Summary */
   .summary-section {
     background: #1a1a2e;
     border: 1px solid #2a2a4a;
-    border-radius: 8px;
-    padding: 10px 12px;
+    border-radius: 6px;
+    padding: 6px 10px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
   .summary-row { display: flex; justify-content: space-between; align-items: center; }
-  .summary-row.mults { flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-  .summary-label { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 0.07em; }
-  .summary-value { font-size: 1rem; font-weight: bold; color: #f0ece4; }
+  .summary-row.mults { flex-wrap: wrap; gap: 3px; margin-top: 1px; }
+  .summary-label { font-size: 0.6rem; color: #888; text-transform: uppercase; letter-spacing: 0.06em; }
+  .summary-value { font-size: 0.85rem; font-weight: bold; color: #f0ece4; }
   .summary-value.field   { color: #4a9eff; }
   .summary-value.finance { color: #c8a44a; }
   .mult-tag {
-    font-size: 0.62rem;
-    padding: 2px 6px;
+    font-size: 0.58rem;
+    padding: 1px 5px;
     border-radius: 3px;
     background: #2a2a3e;
     color: #aaa;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
   }
   .mult-tag.field   { color: #4a9eff; background: #1a2a3e; }
   .mult-tag.finance { color: #c8a44a; background: #2a1e10; }
   .mult-tag.stack   { color: #a0e080; background: #1a2a1a; }
 
   /* Generator sections */
-  .gen-section { display: flex; flex-direction: column; gap: 6px; }
+  .gen-section { display: flex; flex-direction: column; gap: 4px; }
   .section-header {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: #c8a44a;
     border-top: 1px solid #2a2a3e;
-    padding-top: 4px;
+    padding-top: 3px;
   }
-  .unit { color: #666; font-size: 0.65rem; }
+  .unit { color: #666; font-size: 0.58rem; }
 
   .gen-row {
     background: #1e1e30;
     border: 1px solid #2a2a3e;
-    border-radius: 6px;
-    padding: 8px 10px;
+    border-radius: 5px;
+    padding: 5px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     opacity: 0.75;
     transition: opacity 0.1s, border-color 0.1s;
   }
   .gen-row.affordable { opacity: 1; border-color: #3a3a5a; }
 
-  .gen-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-  .gen-name { font-size: 0.85rem; color: #f0ece4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gen-meta { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .gen-name { font-size: 0.75rem; color: #f0ece4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .gen-name.dim { color: #777; }
-  .gen-stats { display: flex; gap: 8px; align-items: center; }
-  .gen-owned { font-size: 0.7rem; color: #888; }
-  .gen-rate { font-size: 0.68rem; }
+  .gen-stats { display: flex; gap: 6px; align-items: center; }
+  .gen-owned { font-size: 0.62rem; color: #888; }
+  .gen-rate { font-size: 0.6rem; }
   .gen-rate.field   { color: #4a9eff; }
   .gen-rate.finance { color: #c8a44a; }
   .gen-rate.dim     { color: #555; }
 
-  .gen-buttons { display: flex; gap: 4px; flex-shrink: 0; }
+  .gen-buttons { display: flex; gap: 3px; flex-shrink: 0; }
   .buy-btn {
     background: #2a3a5a;
     border: 1px solid #4a9eff;
     color: #4a9eff;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 0.72rem;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 0.65rem;
     font-family: inherit;
     cursor: pointer;
     transition: background 0.1s;
@@ -250,16 +250,16 @@
   .upgrade-row {
     background: #1e1e30;
     border: 1px solid #2a2a3e;
-    border-radius: 6px;
-    padding: 8px 10px;
+    border-radius: 5px;
+    padding: 5px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     opacity: 0.55;
     transition: opacity 0.1s, border-color 0.1s;
   }
   .upgrade-row.affordable { opacity: 1; border-color: #3a5a3a; }
   .upgrade-row.purchased  { opacity: 0.4; border-color: #2a2a3e; }
-  .bought-badge { font-size: 0.68rem; color: #4a8a4a; white-space: nowrap; }
+  .bought-badge { font-size: 0.62rem; color: #4a8a4a; white-space: nowrap; }
 </style>

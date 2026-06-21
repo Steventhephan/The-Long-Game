@@ -15,6 +15,7 @@ export function saveGame(state: GameState): void {
     const toSave: GameState = {
       ...state,
       lastCritHit: false,
+      isPaused: false,
       electionResult: state.electionResult === 'none' ? 'none' : state.electionResult,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(toSave));
@@ -77,10 +78,8 @@ function migrate(raw: Partial<GameState>): GameState {
   }
 
   if (version < 3) {
-    // v2 → v3: platform, flipFlopCounts, ideologyId added (Phase 3).
-    // Default platform to all-center; bloc support computed on load via defaultState merge.
     if (!raw.platform || Object.keys(raw.platform).length === 0) {
-      raw = { ...raw, platform: {} }; // defaultState will fill with center stances
+      raw = { ...raw, platform: {} };
     }
     raw = {
       ...raw,
@@ -88,6 +87,25 @@ function migrate(raw: Partial<GameState>): GameState {
       ideologyId: raw.ideologyId ?? 'moderate',
     };
     version = 3;
+  }
+
+  if (version < 4) {
+    // v3 → v4: 5-stance platform (map old L/C/R → CL/C/CR), trust multipliers, isPaused.
+    const stanceMap: Record<string, string> = {
+      left: 'center_left', center: 'center', right: 'center_right',
+    };
+    const oldPlatform = raw.platform ?? {};
+    const newPlatform: Record<string, string> = {};
+    for (const [k, v] of Object.entries(oldPlatform)) {
+      newPlatform[k] = stanceMap[v as string] ?? 'center';
+    }
+    raw = {
+      ...raw,
+      platform: newPlatform,
+      flipFlopTrustMultipliers: raw.flipFlopTrustMultipliers ?? {},
+      isPaused: false,
+    };
+    version = 4;
   }
 
   // Merge with defaults so any future new fields get safe initial values.

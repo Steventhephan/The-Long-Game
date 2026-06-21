@@ -51,52 +51,52 @@
   .race-header {
     background: #1a1a2e;
     border-bottom: 2px solid #c8a44a;
-    padding: 10px 14px 8px;
+    padding: 6px 12px 5px;
     flex-shrink: 0;
   }
   .race-title {
-    font-size: 0.75rem;
+    font-size: 0.62rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #c8a44a;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
   .runoff-badge {
     background: #c0392b;
     color: #fff;
-    font-size: 0.65rem;
-    padding: 1px 6px;
+    font-size: 0.58rem;
+    padding: 1px 5px;
     border-radius: 3px;
     animation: pulse 0.8s ease-in-out infinite alternate;
   }
   @keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
 
-  .progress-bar-wrap { margin-bottom: 4px; }
+  .progress-bar-wrap { margin-bottom: 3px; }
   .progress-bar {
     position: relative;
-    height: 14px;
+    height: 9px;
     background: #2a2a3e;
-    border-radius: 7px;
+    border-radius: 5px;
     overflow: hidden;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
-  .fill { position: absolute; top: 0; height: 100%; border-radius: 7px; transition: width 0.15s ease; }
+  .fill { position: absolute; top: 0; height: 100%; border-radius: 5px; transition: width 0.15s ease; }
   .fill.player { background: #4a9eff; left: 0; }
   .fill.rival  { background: #e74c3c; right: 0; }
   .threshold-line {
     position: absolute;
     left: 50%;
     top: 0; bottom: 0;
-    width: 2px;
-    background: rgba(255,255,255,0.4);
+    width: 1px;
+    background: rgba(255,255,255,0.35);
   }
   .progress-labels {
     display: flex;
     justify-content: space-between;
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     color: #aaa;
   }
   .player-pct { color: #4a9eff; font-weight: bold; }
@@ -104,10 +104,11 @@
 
   .stats-row {
     display: flex;
-    gap: 24px;
+    gap: 16px;
+    margin-top: 2px;
   }
   .stat { display: flex; flex-direction: column; }
-  .stat-label { font-size: 0.6rem; text-transform: uppercase; color: #888; letter-spacing: 0.08em; }
-  .stat-value { font-size: 1rem; font-weight: bold; color: #f0ece4; }
+  .stat-label { font-size: 0.55rem; text-transform: uppercase; color: #888; letter-spacing: 0.07em; }
+  .stat-value { font-size: 0.85rem; font-weight: bold; color: #f0ece4; }
   .timer.urgent { color: #e74c3c; animation: pulse 0.5s ease-in-out infinite alternate; }
 </style>

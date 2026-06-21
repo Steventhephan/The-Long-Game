@@ -7,14 +7,14 @@ import { getOffice, MAX_OFFICE_INDEX } from '../config/offices';
 import { initElection } from '../sim/election';
 import { computeAllBlocSupport, computePosition, eraForOffice, getIdeology } from '../sim/platform';
 
-export const SAVE_VERSION = 3; // Phase 3: platform, flipFlopCounts, ideologyId
+export const SAVE_VERSION = 4; // Phase 3 v2: 5-stance platform, trust multipliers, isPaused
 
 function officeRivalRate(officeIndex: number, phase: 'primary' | 'general'): number {
   const o = getOffice(officeIndex);
   return phase === 'primary' ? o.rivalRatePrimary : o.rivalRateGeneral;
 }
 
-/** Default platform: all issues set to center. */
+/** Default platform: all issues set to center (first promise is always free). */
 function defaultPlatform(): Record<string, string> {
   return Object.fromEntries(ISSUES.map(i => [i.id, 'center']));
 }
@@ -24,7 +24,8 @@ function freshRunState(): GameState {
   const phase = 'primary' as const;
   const era = eraForOffice(officeIndex);
   const platform = defaultPlatform();
-  const blocSupport = computeAllBlocSupport(platform, INTEREST_GROUPS, era);
+  const trustMultipliers: Record<string, number> = {};
+  const blocSupport = computeAllBlocSupport(platform, trustMultipliers, INTEREST_GROUPS, era);
   const position = computePosition(platform, era);
   const ideology = getIdeology(position);
 
@@ -40,6 +41,7 @@ function freshRunState(): GameState {
     volunteers: 0,
     platform,
     flipFlopCounts: {},
+    flipFlopTrustMultipliers: trustMultipliers,
     ideologyId: ideology.id,
     blocSupport,
     officeIndex,
@@ -56,6 +58,7 @@ function freshRunState(): GameState {
     globalMultiplier: 1,
 
     lastCritHit: false,
+    isPaused: false,
     electionResult: 'none',
   };
 
@@ -70,7 +73,6 @@ export function defaultState(): GameState {
   return freshRunState();
 }
 
-/** Called on a run loss: bank prestige, reset run, keep meta. */
 export function resetRun(state: GameState): GameState {
   const electionsBanked = state.officeIndex * 2 + (state.phase === 'general' ? 1 : 0);
   let newPrestige = state.prestige;
@@ -85,9 +87,10 @@ export function resetRun(state: GameState): GameState {
     achievements: state.achievements,
     globalMultiplier: state.globalMultiplier,
     rngSeed: (state.rngSeed + 1) | 0,
-    // Platform and ideology carry over (dynasty: new candidate, same family values)
+    // Platform carries over across runs (dynasty continuity).
     platform: state.platform,
     flipFlopCounts: state.flipFlopCounts,
+    flipFlopTrustMultipliers: state.flipFlopTrustMultipliers,
     ideologyId: state.ideologyId,
     blocSupport: state.blocSupport,
   };
@@ -99,19 +102,17 @@ export function resetRun(state: GameState): GameState {
   );
 }
 
-/** Called on a win: advance phase or office. */
 export function advanceElection(state: GameState): GameState {
   const nextPhase: 'primary' | 'general' =
     state.phase === 'primary' ? 'general' : 'primary';
   const nextOffice = state.phase === 'general' ? state.officeIndex + 1 : state.officeIndex;
 
-  if (nextOffice > MAX_OFFICE_INDEX) {
-    return resetRun(state);
-  }
+  if (nextOffice > MAX_OFFICE_INDEX) return resetRun(state);
 
-  // Recompute bloc support for the new office's era (new issues may unlock).
   const era = eraForOffice(nextOffice);
-  const newBlocSupport = computeAllBlocSupport(state.platform, INTEREST_GROUPS, era);
+  const newBlocSupport = computeAllBlocSupport(
+    state.platform, state.flipFlopTrustMultipliers, INTEREST_GROUPS, era
+  );
   const position = computePosition(state.platform, era);
   const ideology = getIdeology(position);
 
@@ -121,6 +122,7 @@ export function advanceElection(state: GameState): GameState {
       officeIndex: nextOffice,
       phase: nextPhase,
       electionResult: 'none',
+      isPaused: false,
       blocSupport: newBlocSupport,
       ideologyId: ideology.id,
     },

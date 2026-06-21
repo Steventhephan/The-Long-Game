@@ -4,7 +4,9 @@
   import OperationTab from './OperationTab.svelte';
   import PlatformTab from './PlatformTab.svelte';
   import ResultModal from './ResultModal.svelte';
+  import PolicyModal from './PolicyModal.svelte';
   import { gameStore } from '../state/store';
+  import { policyModalIssueId, closePolicyModal } from '../state/uiStore';
 
   type Tab = 'campaign' | 'operation' | 'platform';
   let activeTab: Tab = 'campaign';
@@ -49,6 +51,10 @@
   </nav>
 
   <ResultModal />
+
+  {#if $policyModalIssueId !== null}
+    <PolicyModal initialIssueId={$policyModalIssueId} on:close={closePolicyModal} />
+  {/if}
 </div>
 
 <style>
@@ -59,6 +65,7 @@
     max-width: 480px;
     margin: 0 auto;
     overflow: hidden;
+    position: relative; /* scopes position:absolute overlays to game container */
   }
 
   .tab-content {
@@ -77,13 +84,13 @@
 
   .tab-btn {
     flex: 1;
-    padding: 10px 4px 8px;
+    padding: 7px 4px 5px;
     background: transparent;
     border: none;
     border-top: 2px solid transparent;
     color: #888;
     font-family: inherit;
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     cursor: pointer;

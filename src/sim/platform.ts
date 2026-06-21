@@ -7,7 +7,6 @@ import type { GameState, InterestGroupDef, IdeologyDef, Era } from '../types';
 // Position & ideology
 // ---------------------------------------------------------------------------
 
-/** Mean of all chosen stance scalars across currently-unlocked issues. */
 export function computePosition(platform: Record<string, string>, currentEra: Era): number {
   const unlocked = issuesForEra(currentEra);
   if (unlocked.length === 0) return 0;
@@ -16,7 +15,7 @@ export function computePosition(platform: Record<string, string>, currentEra: Er
   let count = 0;
   for (const issue of unlocked) {
     const stanceId = platform[issue.id] ?? 'center';
-    const stance = issue.stances.find(s => s.id === stanceId) ?? issue.stances[1];
+    const stance = issue.stances.find(s => s.id === stanceId) ?? issue.stances[2]; // default center
     sum += stance.scalar;
     count++;
   }
@@ -29,29 +28,20 @@ export { getIdeology };
 // Bloc support
 // ---------------------------------------------------------------------------
 
-/**
- * Compute the support multiplier for a single group based on:
- *   1. How well the player's platform aligns with the group's priority issues
- *   2. The ideology modifier for that group
- *
- * Result is clamped to [blocSupportMin, blocSupportMax].
- */
 export function computeGroupSupport(
   groupId: string,
   priorityIssues: InterestGroupDef['priorityIssues'],
   platform: Record<string, string>,
+  trustMultipliers: Record<string, number>,
   ideology: IdeologyDef,
   currentEra: Era,
 ): number {
   const unlockedEraIds = new Set(issuesForEra(currentEra).map(i => i.id));
-
-  // Filter to priority issues that are currently unlocked.
   const active = priorityIssues.filter(p => unlockedEraIds.has(p.issueId));
 
   let base: number;
   if (active.length === 0) {
-    // No active priority issues for this group yet — neutral support.
-    base = 1.0;
+    base = 1.0; // neutral when no active priority issues
   } else {
     let totalScore = 0;
     for (const priority of active) {
@@ -60,22 +50,22 @@ export function computeGroupSupport(
       const playerScalar = issue?.stances.find(s => s.id === stanceId)?.scalar ?? 0;
       // Alignment: 1.0 = perfect match, 0.5 = one is center, 0.0 = opposite
       const alignment = (playerScalar * priority.preferredScalar + 1) / 2;
-      totalScore += alignment;
+      // Apply flip-flop trust multiplier for this issue
+      const trust = trustMultipliers[priority.issueId] ?? 1.0;
+      totalScore += alignment * trust;
     }
-    const avgAlignment = totalScore / active.length; // 0..1
-    // Map to support range: 0.5 (hostile) → 3.0 (champion)
-    base = BAL.blocSupportMin + avgAlignment * (BAL.blocSupportMax - BAL.blocSupportMin);
+    const avgScore = totalScore / active.length;
+    base = BAL.blocSupportMin + avgScore * (BAL.blocSupportMax - BAL.blocSupportMin);
   }
 
-  // Apply ideology modifier.
   const modifier = ideology.blocModifiers[groupId] ?? 0;
   const modified = base * (1 + modifier);
   return Math.max(BAL.blocSupportMin, Math.min(BAL.blocSupportMax, modified));
 }
 
-/** Recompute blocSupport for all 14 groups. */
 export function computeAllBlocSupport(
   platform: Record<string, string>,
+  trustMultipliers: Record<string, number>,
   groups: InterestGroupDef[],
   currentEra: Era,
 ): Record<string, number> {
@@ -87,6 +77,7 @@ export function computeAllBlocSupport(
       group.groupId,
       group.priorityIssues,
       platform,
+      trustMultipliers,
       ideology,
       currentEra,
     );
@@ -95,22 +86,34 @@ export function computeAllBlocSupport(
 }
 
 // ---------------------------------------------------------------------------
-// Flip-flop cost
+// Flip-flop cost & trust erosion
 // ---------------------------------------------------------------------------
 
 /**
- * Cash cost to change a stance. First change on an issue is free
- * (setting initial position); each subsequent change costs more.
+ * Cash cost to change a stance on an issue.
  * flipCount = number of previous changes on this issue.
+ * First promise (count=0) is free. Each subsequent change costs more.
  */
 export function flipFlopCost(flipCount: number): number {
-  if (flipCount === 0) return 0; // first pick is free
-  // 1st flip: baseCost, 2nd: baseCost×2, 3rd: baseCost×4, …
-  return BAL.flipFlopBaseCost * BAL.flipFlopCostGrowth ** (flipCount - 1);
+  if (flipCount === 0) return 0;
+  return BAL.flipFlopBaseCost * (BAL.flipFlopCostGrowth ** (flipCount - 1));
+}
+
+/**
+ * Trust multiplier on a policy's effectiveness after N total changes.
+ * First promise: 1.0 (full trust). Each flip erodes it.
+ * count = new flipFlopCount AFTER this change.
+ */
+export function trustAfterFlip(count: number): number {
+  // count=1 → first promise (free, full trust)
+  // count=2 → first flip (paid, trust erodes to 0.7)
+  // count=3 → second flip (trust = 0.49)
+  const erosions = Math.max(0, count - 1);
+  return Math.max(0.3, BAL.flipFlopTrustErosion ** erosions);
 }
 
 // ---------------------------------------------------------------------------
-// Derived era from office index
+// Era helper
 // ---------------------------------------------------------------------------
 
 export function eraForOffice(officeIndex: number): Era {
@@ -121,34 +124,40 @@ export function eraForOffice(officeIndex: number): Era {
 }
 
 // ---------------------------------------------------------------------------
-// Apply a stance change to GameState (returns new state or null if unaffordable)
+// Apply a stance change (returns new state or null if unaffordable)
 // ---------------------------------------------------------------------------
 
 export function applyStanceChange(
   state: GameState,
   issueId: string,
-  newStanceId: 'left' | 'center' | 'right',
+  newStanceId: string,
   groups: InterestGroupDef[],
 ): GameState | null {
-  if (state.platform[issueId] === newStanceId) return state; // no change
+  if (state.platform[issueId] === newStanceId) return state;
 
   const count = state.flipFlopCounts[issueId] ?? 0;
   const cost = flipFlopCost(count);
 
-  if (state.cash < cost) return null; // can't afford
+  if (state.cash < cost) return null;
 
   const newPlatform = { ...state.platform, [issueId]: newStanceId };
-  const newFlipFlopCounts = { ...state.flipFlopCounts, [issueId]: count + 1 };
+  const newCount = count + 1;
+  const newFlipFlopCounts = { ...state.flipFlopCounts, [issueId]: newCount };
+  const newTrustMultipliers = {
+    ...state.flipFlopTrustMultipliers,
+    [issueId]: trustAfterFlip(newCount),
+  };
   const era = eraForOffice(state.officeIndex);
   const position = computePosition(newPlatform, era);
   const ideology = getIdeology(position);
-  const newBlocSupport = computeAllBlocSupport(newPlatform, groups, era);
+  const newBlocSupport = computeAllBlocSupport(newPlatform, newTrustMultipliers, groups, era);
 
   return {
     ...state,
     cash: state.cash - cost,
     platform: newPlatform,
     flipFlopCounts: newFlipFlopCounts,
+    flipFlopTrustMultipliers: newTrustMultipliers,
     ideologyId: ideology.id,
     blocSupport: newBlocSupport,
   };

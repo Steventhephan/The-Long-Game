@@ -254,6 +254,7 @@ export function knockDoors(state: GameState): GameState {
 // ---------------------------------------------------------------------------
 
 export function tick(state: GameState, dt: number): GameState {
+  if (state.isPaused) return state;                  // Promise modal open
   if (state.electionResult !== 'none') return state;
   if (state.blocs.length === 0) return state;
 
