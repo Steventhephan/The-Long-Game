@@ -3,9 +3,11 @@
   import { knockDoors, computeStack, computeUpgradeEffects } from '../sim/election';
   import { GENERATORS } from '../config/generators';
   import { BAL, PHASE1 } from '../config/balance';
-  import { blocsUnlockedForOffice } from '../config/blocs';
+  import { blocsUnlockedForOffice, INTEREST_GROUPS } from '../config/blocs';
+  import { abilitiesForOffice, getAbility } from '../config/abilities';
+  import { TOWN_HALLS, FUNDRAISING_GALAS } from '../config/minigames';
   import { clearSave, saveGame } from '../persist/autosave';
-  import { defaultState } from '../state/gameState';
+  import { defaultState, activateAbility, openOptionalMinigame } from '../state/gameState';
 
   $: state = $gameStore;
 
@@ -98,9 +100,106 @@
       gameStore.set(defaultState());
     }
   }
+
+  // Abilities (State era+, officeIndex >= 4)
+  $: isStateEra = state.officeIndex >= 4;
+  $: activeAbilities = isStateEra ? abilitiesForOffice(state.officeIndex) : [];
+
+  // Ability targeting: track which ability needs a target before firing
+  let targetingAbilityId: string | null = null;
+
+  function onAbilityClick(abilityId: string) {
+    const ability = getAbility(abilityId);
+    if (!ability) return;
+    if (ability.target === 'self') {
+      fireAbility(abilityId);
+    } else {
+      targetingAbilityId = targetingAbilityId === abilityId ? null : abilityId;
+    }
+  }
+
+  function fireAbility(abilityId: string, targetId?: string) {
+    const next = activateAbility(state, abilityId, targetId);
+    if (!next) return;
+    gameStore.set(next);
+    saveGame(next);
+    targetingAbilityId = null;
+  }
+
+  function abilityCooldownPct(abilityId: string): number {
+    const ability = getAbility(abilityId);
+    if (!ability) return 0;
+    const remaining = state.abilityCooldowns[abilityId] ?? 0;
+    return remaining / ability.baseCooldown;
+  }
+
+  function abilityCostDisplay(abilityId: string): string {
+    const ability = getAbility(abilityId);
+    if (!ability) return '';
+    const cost = Math.round(ability.baseCost * BAL.timerGrowth ** state.officeIndex);
+    return `$${formatNum(cost)}`;
+  }
+
+  // Optional minigames (County era+)
+  $: isCountyEra = state.officeIndex >= 2;
+  $: townHalls = isCountyEra ? TOWN_HALLS : [];
+  $: galas = isCountyEra ? FUNDRAISING_GALAS : [];
+
+  function onOptionalMinigame(minigameId: string) {
+    const next = openOptionalMinigame(state, minigameId);
+    if (!next) return;
+    gameStore.set(next);
+    saveGame(next);
+  }
+
+  function minigameCooldownDisplay(type: string): string {
+    const cd = state.minigameCooldowns[type] ?? 0;
+    if (cd <= 0) return '';
+    return `${Math.ceil(cd)}s`;
+  }
+
+  // Active event modifiers
+  $: activeModifiers = state.eventModifiers ?? [];
+
+  function modifierLabel(mod: { label: string; kind: string; magnitude: number; duration: number }): string {
+    const sign = mod.magnitude >= 1 ? '+' : '−';
+    if (mod.kind === 'conversionMult') {
+      const pct = Math.round(Math.abs(mod.magnitude - 1) * 100);
+      return `${mod.magnitude >= 1 ? '▲' : '▼'} ${pct}% conv`;
+    }
+    if (mod.kind === 'cashMult') {
+      const pct = Math.round(Math.abs(mod.magnitude - 1) * 100);
+      return `${mod.magnitude >= 1 ? '▲' : '▼'} ${pct}% $`;
+    }
+    if (mod.kind === 'blocSupportDelta') return `${sign}${mod.magnitude.toFixed(1)} bloc`;
+    if (mod.kind === 'rivalConvMult') {
+      const pct = Math.round(Math.abs(mod.magnitude - 1) * 100);
+      return `rival ${mod.magnitude >= 1 ? '+' : '−'}${pct}% conv`;
+    }
+    return mod.label;
+  }
 </script>
 
 <div class="campaign-tab">
+
+  <!-- Active event modifier banners -->
+  {#if activeModifiers.length > 0}
+    <div class="modifier-banners">
+      {#each activeModifiers as mod (mod.id)}
+        {@const isPositive = (mod.kind === 'conversionMult' || mod.kind === 'cashMult' || mod.kind === 'blocSupportDelta')
+          ? mod.magnitude >= 1
+          : mod.magnitude <= 1}
+        <div class="modifier-row" class:positive={isPositive} class:negative={!isPositive}>
+          <span class="mod-label">{mod.label} · {modifierLabel(mod)}</span>
+          <span class="mod-timer">{Math.ceil(mod.duration)}s</span>
+          <div class="mod-bar">
+            <div class="mod-fill" style="width:{Math.min(mod.duration / 30, 1) * 100}%"></div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
   <!-- Knock button -->
   <div class="knock-section">
     {#each floaters as floater (floater.id)}
@@ -127,6 +226,101 @@
       <span class="rate cash">💰 ${formatRate(displayCashRate)}/s</span>
     </div>
   </div>
+
+  <!-- Optional minigames (County era+) -->
+  {#if isCountyEra && (townHalls.length > 0 || galas.length > 0)}
+    <div class="optional-section">
+      <div class="section-label">Outreach</div>
+      <div class="optional-row">
+        {#each [...townHalls, ...galas] as mg}
+          {@const cd = state.minigameCooldowns[mg.type] ?? 0}
+          {@const canAfford = state.cash >= (mg.cashCost ?? 0)}
+          {@const onCooldown = cd > 0}
+          <button
+            class="optional-btn"
+            disabled={onCooldown || !canAfford || state.electionResult !== 'none'}
+            on:click={() => onOptionalMinigame(mg.id)}
+            title={mg.title}
+          >
+            <span class="opt-icon">{mg.type === 'town_hall' ? '🏛' : '🥂'}</span>
+            <span class="opt-name">{mg.title}</span>
+            {#if onCooldown}
+              <span class="opt-status cd">{minigameCooldownDisplay(mg.type)}</span>
+            {:else if !canAfford}
+              <span class="opt-status cost">${mg.cashCost ?? 0}</span>
+            {:else}
+              <span class="opt-status ready">${mg.cashCost ?? 0}</span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
+  <!-- Abilities (State era+) -->
+  {#if isStateEra && activeAbilities.length > 0}
+    <div class="abilities-section">
+      <div class="section-label">Abilities</div>
+      {#each activeAbilities as ability}
+        {@const cd = state.abilityCooldowns[ability.id] ?? 0}
+        {@const cost = Math.round(ability.baseCost * BAL.timerGrowth ** state.officeIndex)}
+        {@const canAfford = state.cash >= cost}
+        {@const onCooldown = cd > 0}
+        {@const disabled = onCooldown || !canAfford || state.electionResult !== 'none'}
+        <div class="ability-row" class:targeting={targetingAbilityId === ability.id}>
+          <div class="ability-meta">
+            <span class="ability-name">{ability.name}</span>
+            <span class="ability-desc">{ability.description}</span>
+          </div>
+          <div class="ability-right">
+            {#if onCooldown}
+              <div class="cd-bar">
+                <div class="cd-fill" style="width:{abilityCooldownPct(ability.id) * 100}%"></div>
+              </div>
+              <span class="cd-label">{Math.ceil(cd)}s</span>
+            {:else}
+              <button
+                class="ability-btn"
+                class:active={targetingAbilityId === ability.id}
+                disabled={disabled}
+                on:click={() => onAbilityClick(ability.id)}
+              >
+                {abilityCostDisplay(ability.id)}
+                {#if !canAfford}<span class="no-cash"> ✗</span>{:else}<span class="ready-dot"> ✓</span>{/if}
+              </button>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Target picker (bloc or rival) -->
+        {#if targetingAbilityId === ability.id && ability.target === 'bloc'}
+          <div class="target-picker">
+            <span class="target-label">Pick a bloc to court:</span>
+            <div class="target-options">
+              {#each blocsUnlockedForOffice(state.officeIndex) as group}
+                <button class="target-btn" on:click={() => fireAbility(ability.id, group.groupId)}>
+                  {group.shortName}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {:else if targetingAbilityId === ability.id && ability.target === 'rival'}
+          <div class="target-picker">
+            <span class="target-label">Pick a target:</span>
+            <div class="target-options">
+              {#each state.rivals as rival, ri}
+                {#if !rival.eliminated}
+                  <button class="target-btn rival-target" on:click={() => fireAbility(ability.id, String(ri))}>
+                    {rival.name}
+                  </button>
+                {/if}
+              {/each}
+            </div>
+          </div>
+        {/if}
+      {/each}
+    </div>
+  {/if}
 
   <!-- Reset save -->
   <div class="reset-section">
@@ -268,6 +462,103 @@
   .bloc-fill.you   { left: 0;  background: #4a9eff; }
   .bloc-fill.rival { right: 0; background: #e74c3c; }
   .bloc-pct { font-size: 0.6rem; color: #4a9eff; min-width: 24px; text-align: right; }
+
+  /* Event modifier banners */
+  .modifier-banners {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .modifier-row {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.62rem;
+    border: 1px solid;
+  }
+  .modifier-row.positive { background: #0a1a10; border-color: #2a4a2a; color: #4a9a4a; }
+  .modifier-row.negative { background: #1a0a0a; border-color: #4a2a2a; color: #c05050; }
+  .mod-label { flex: 1; font-weight: bold; }
+  .mod-timer { flex-shrink: 0; font-size: 0.58rem; opacity: 0.7; }
+  .mod-bar { width: 40px; height: 3px; background: #2a2a3e; border-radius: 2px; flex-shrink: 0; overflow: hidden; }
+  .mod-fill { height: 100%; background: currentColor; border-radius: 2px; transition: width 0.5s linear; }
+
+  /* Optional minigames */
+  .optional-section { display: flex; flex-direction: column; gap: 4px; }
+  .optional-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .optional-btn {
+    flex: 1; min-width: 120px;
+    background: #1a1a2e; border: 1px solid #2a3a5a;
+    border-radius: 5px; padding: 5px 8px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+    cursor: pointer; font-family: inherit;
+    transition: border-color 0.1s, background 0.1s;
+  }
+  .optional-btn:not(:disabled):active { background: #1e2a3e; }
+  .optional-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .opt-icon { font-size: 1rem; }
+  .opt-name { font-size: 0.6rem; color: #aaa; }
+  .opt-status { font-size: 0.62rem; font-weight: bold; }
+  .opt-status.ready { color: #c8a44a; }
+  .opt-status.cd { color: #888; }
+  .opt-status.cost { color: #555; }
+
+  /* Abilities */
+  .abilities-section { display: flex; flex-direction: column; gap: 3px; }
+  .section-label {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #c8a44a; border-top: 1px solid #2a2a3e; padding-top: 3px;
+    margin-bottom: 1px;
+  }
+
+  .ability-row {
+    background: #1e1e30; border: 1px solid #2a2a3e;
+    border-radius: 5px; padding: 5px 8px;
+    display: flex; align-items: center; gap: 8px;
+    transition: border-color 0.1s;
+  }
+  .ability-row.targeting { border-color: #c8a44a44; }
+
+  .ability-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .ability-name { font-size: 0.72rem; color: #f0ece4; font-weight: 600; }
+  .ability-desc { font-size: 0.58rem; color: #666; line-height: 1.3; }
+
+  .ability-right {
+    display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+  }
+  .ability-btn {
+    background: #1a2a4a; border: 1px solid #4a9eff;
+    color: #4a9eff; border-radius: 4px;
+    padding: 3px 8px; font-size: 0.65rem;
+    font-family: inherit; cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s;
+  }
+  .ability-btn.active { background: #2a3a5a; border-color: #c8a44a; color: #c8a44a; }
+  .ability-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .ability-btn:not(:disabled):active { background: #2a3a5a; }
+  .ready-dot { color: #4a8a4a; }
+  .no-cash { color: #c05050; }
+
+  .cd-bar { width: 32px; height: 3px; background: #2a2a3e; border-radius: 2px; overflow: hidden; }
+  .cd-fill { height: 100%; background: #888; border-radius: 2px; transition: width 0.5s linear; }
+  .cd-label { font-size: 0.6rem; color: #666; min-width: 22px; text-align: right; }
+
+  .target-picker {
+    background: #13131f; border: 1px solid #c8a44a44;
+    border-radius: 5px; padding: 5px 8px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .target-label { font-size: 0.58rem; color: #888; }
+  .target-options { display: flex; flex-wrap: wrap; gap: 3px; }
+  .target-btn {
+    background: #1e2a3e; border: 1px solid #3a4a6a;
+    color: #aaa; border-radius: 3px;
+    padding: 3px 7px; font-size: 0.62rem;
+    font-family: inherit; cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+  }
+  .target-btn:active, .target-btn:hover { background: #2a3a5a; color: #f0ece4; }
+  .target-btn.rival-target { border-color: #7a2a2a; color: #e47a7a; }
+  .target-btn.rival-target:active { background: #3a2020; }
 
   .reset-section { display: flex; justify-content: center; padding-top: 8px; }
   .reset-btn {

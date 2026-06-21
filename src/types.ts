@@ -69,9 +69,13 @@ export interface BlocState {
 
 export interface RivalState {
   archetypeId: string;
+  name: string;
   lean: number;
   share: Num;
   eliminated: boolean;
+  conversionMod: number;
+  strongBlocs: string[];
+  weakBlocs: string[];
 }
 
 export interface GameState {
@@ -107,9 +111,17 @@ export interface GameState {
   runNumber: number;
   highestOfficeCompleted: number; // -1 = none; officeIndex of last office with completed general
 
+  // Phase 5 run-level state (resets per run):
+  pendingMinigame: string | null;              // minigame id queued; race paused until resolved
+  minigameCooldowns: Record<string, number>;   // optional minigame type → seconds remaining
+  abilityCooldowns: Record<string, number>;    // ability id → seconds remaining
+  activeEvent: ActiveEventState | null;        // dilemma event pausing the race
+  eventModifiers: EventModifier[];             // struck modifiers (timed effects)
+  eventCooldown: number;                       // seconds until next event can fire
+
   // transient UI signals — not persisted:
   lastCritHit: boolean;
-  isPaused: boolean;   // true while Promise modal is open; halts tick()
+  isPaused: boolean;   // true while any modal is open; halts tick()
   electionResult: 'none' | 'win' | 'lose' | 'runoff_start' | 'runoff_win' | 'runoff_lose';
 }
 
@@ -180,6 +192,94 @@ export interface OfficeDef {
   unlocks: string[];
 }
 
+// --- Phase 5: Minigame types ---
+
+export type MinigameEffectSpec =
+  | { kind: 'charisma'; delta: number }
+  | { kind: 'blocSupport'; groupId: string; delta: number }
+  | { kind: 'cash'; amount: number }
+  | { kind: 'stanceCommit'; issueId: string; stanceId: string };
+
+export interface MinigameChoice {
+  id: string;
+  text: string;
+  effects: MinigameEffectSpec[];
+}
+
+export interface MinigameDef {
+  id: string;
+  type: 'debate' | 'town_hall' | 'fundraising_gala';
+  title: string;
+  prompt: string;
+  choices: MinigameChoice[];
+  unlockEra: Era;
+  mandatory?: boolean;
+  cooldownSeconds?: number;
+  cashCost?: number;
+}
+
+// --- Phase 5: Ability types ---
+
+export interface AbilityDef {
+  id: string;
+  name: string;
+  description: string;
+  category: 'boost' | 'offensive';
+  baseCost: number;
+  baseCooldown: number;
+  effectDuration?: number;
+  effectMagnitude: number;
+  target: 'self' | 'bloc' | 'rival';
+  unlockOfficeIndex: number;
+}
+
+// --- Phase 5: Event types ---
+
+export interface EventModifier {
+  id: string;
+  label: string;
+  kind: 'conversionMult' | 'cashMult' | 'blocSupportDelta' | 'rivalConvMult';
+  magnitude: number;
+  duration: number;
+  groupId?: string;
+  rivalIndex?: number;
+}
+
+export type EventDilemmaEffect =
+  | { kind: 'charisma'; delta: number }
+  | { kind: 'blocSupport'; groupId: string; delta: number }
+  | { kind: 'cash'; amount: number }
+  | { kind: 'modifier'; modKind: EventModifier['kind']; magnitude: number; duration: number; groupId?: string; rivalIndex?: number };
+
+export interface EventChoice {
+  id: string;
+  text: string;
+  effects: EventDilemmaEffect[];
+}
+
+export interface EventDef {
+  id: string;
+  name: string;
+  type: 'dilemma' | 'modifier';
+  valence: 'positive' | 'negative' | 'neutral';
+  prompt?: string;
+  choices?: EventChoice[];
+  modKind?: EventModifier['kind'];
+  modMagnitude?: number;
+  modDuration?: number;
+  triggerType: 'random' | 'state' | 'scheduled';
+  stateCheck?: 'heavy_flips' | 'low_charisma' | 'high_volunteers' | 'timer_late';
+  targetsSelf: boolean;
+  unlockOfficeIndex: number;
+}
+
+export interface ActiveEventState {
+  eventId: string;
+  targetRivalIndex?: number;
+}
+
+// --- GeneratorDef ---
+
 export interface GeneratorDef {
   id: string;
   name: string;
@@ -210,4 +310,7 @@ export interface RivalStaticDef {
   archetypeId: string;
   name: string;
   lean: number;
+  conversionMod: number;     // multiplier on office rivalRate (1.0 = baseline)
+  strongBlocs: string[];     // groupIds where rival gets +50% rate bonus
+  weakBlocs: string[];       // groupIds where rival gets -50% rate penalty
 }

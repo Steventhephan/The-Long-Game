@@ -6,6 +6,8 @@
   import LegacyTab from './LegacyTab.svelte';
   import ResultModal from './ResultModal.svelte';
   import PolicyModal from './PolicyModal.svelte';
+  import MinigameModal from './MinigameModal.svelte';
+  import EventModal from './EventModal.svelte';
   import { gameStore } from '../state/store';
   import { policyModalIssueId, closePolicyModal } from '../state/uiStore';
 
@@ -62,6 +64,9 @@
   {#if $policyModalIssueId !== null}
     <PolicyModal initialIssueId={$policyModalIssueId} on:close={closePolicyModal} />
   {/if}
+
+  <MinigameModal />
+  <EventModal />
 </div>
 
 <style>

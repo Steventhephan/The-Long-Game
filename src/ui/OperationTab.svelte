@@ -2,6 +2,7 @@
   import { gameStore, formatNum } from '../state/store';
   import { computeStack, computeUpgradeEffects } from '../sim/election';
   import { computePerkEffects } from '../sim/prestige';
+  import { BAL } from '../config/balance';
   import { generatorsForOffice, generatorCost, generatorOutput, maxAffordable, bulkCost } from '../config/generators';
   import { upgradesForOffice } from '../config/upgrades';
   import { saveGame } from '../persist/autosave';
@@ -18,6 +19,9 @@
   function genCostMult(g: GeneratorDef): number {
     return g.track === 'field' ? perkEffects.fieldCostMult : perkEffects.financeCostMult;
   }
+
+  // Volunteer display
+  $: volunteerRate = BAL.baseVolunteerRate + state.charisma * BAL.charismaVolunteerRate;
 
   // Live aggregate output rates (includes upgrades + global stack)
   $: totalFieldRate = fieldGens.reduce((sum, g) => {
@@ -81,6 +85,16 @@
 
   <!-- Output summary -->
   <div class="summary-section">
+    <div class="summary-row">
+      <span class="summary-label">Volunteers</span>
+      <span class="summary-value volunteers">{formatNum(state.volunteers)}</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Accrual rate</span>
+      <span class="summary-value vol-rate">+{volunteerRate.toFixed(1)}/s
+        {#if state.charisma > 0}<span class="charisma-tag">(Charisma {state.charisma})</span>{/if}
+      </span>
+    </div>
     <div class="summary-row">
       <span class="summary-label">Field output</span>
       <span class="summary-value field">{formatNum(totalFieldRate)} voters/s</span>
@@ -188,8 +202,11 @@
   .summary-row.mults { flex-wrap: wrap; gap: 3px; margin-top: 1px; }
   .summary-label { font-size: 0.6rem; color: #888; text-transform: uppercase; letter-spacing: 0.06em; }
   .summary-value { font-size: 0.85rem; font-weight: bold; color: #f0ece4; }
-  .summary-value.field   { color: #4a9eff; }
-  .summary-value.finance { color: #c8a44a; }
+  .summary-value.field      { color: #4a9eff; }
+  .summary-value.finance    { color: #c8a44a; }
+  .summary-value.volunteers { color: #a0e080; }
+  .summary-value.vol-rate   { color: #a0e080; font-size: 0.72rem; }
+  .charisma-tag { font-size: 0.58rem; color: #70b060; margin-left: 3px; }
   .mult-tag {
     font-size: 0.58rem;
     padding: 1px 5px;

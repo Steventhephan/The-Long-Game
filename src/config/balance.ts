@@ -25,6 +25,15 @@ export const BAL = {
   poolGrowth: 4.3,
   runoffSeconds: 20,
   flipFlopBaseCost: 50, // TUNING TARGET: cash cost of first stance flip; doubles each subsequent (×flipFlopCostGrowth)
+  // Phase 5: Volunteers
+  baseVolunteerRate: 0.5,          // volunteers/sec with charisma=0 (Local baseline)
+  charismaVolunteerRate: 2.0,      // additional volunteers/sec per charisma point
+  // Phase 5: Events
+  eventBaseChance: 0.012,          // probability/sec of a random event firing (state era+)
+  eventMinGap: 30,                 // minimum seconds between events
+  // Phase 5: Abilities — cost scales by BAL.timerGrowth^officeIndex
+  abilityArchetypeConvBonus: 1.5,  // strong-bloc multiplier for rival archetypes
+  abilityArchetypeConvPenalty: 0.5,// weak-bloc multiplier for rival archetypes
 } as const;
 
 // Phase-1 tuning targets — adjust freely during playtesting.

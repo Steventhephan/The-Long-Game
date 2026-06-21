@@ -111,6 +111,41 @@ export const UPGRADES: UpgradeDef[] = [
     effect: { kind: 'financeMult', value: 2 },
     unlockRung: 2,
   },
+
+  // ── Ideological Forks (Federal era — officeIndex 6+) ─────────────────────
+  // Commits to an ideological identity; mutually exclusive via exclusiveGroup.
+  // Effect is a tapMult — fork bonuses are applied as a 3× tap multiplier for
+  // a committed identity (representing motivated base turnout).
+  {
+    id: 'fork_progressive',
+    name: 'Progressive Identity',
+    description: 'Commit to the progressive lane — ×3 tap output when blocSupport from Labor, Civil Rights, or Environmentalists avg > 1.5',
+    category: 'fork',
+    cost: 50_000,
+    effect: { kind: 'tapMult', value: 1.5 },
+    unlockRung: 6,
+    exclusiveGroup: 'ideology_fork',
+  },
+  {
+    id: 'fork_moderate',
+    name: 'Moderate Identity',
+    description: 'Commit to the moderate lane — ×1.5 tap output, but bonus ×1.5 when leading Suburban Moderates and Retirees',
+    category: 'fork',
+    cost: 50_000,
+    effect: { kind: 'tapMult', value: 1.5 },
+    unlockRung: 6,
+    exclusiveGroup: 'ideology_fork',
+  },
+  {
+    id: 'fork_conservative',
+    name: 'Conservative Identity',
+    description: 'Commit to the conservative lane — ×1.5 tap output when blocSupport from Law Enforcement, Faith, or Small Business avg > 1.5',
+    category: 'fork',
+    cost: 50_000,
+    effect: { kind: 'tapMult', value: 1.5 },
+    unlockRung: 6,
+    exclusiveGroup: 'ideology_fork',
+  },
 ];
 
 export function upgradesForOffice(officeIndex: number): UpgradeDef[] {

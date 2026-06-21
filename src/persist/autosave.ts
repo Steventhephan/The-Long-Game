@@ -16,6 +16,8 @@ export function saveGame(state: GameState): void {
       ...state,
       lastCritHit: false,
       isPaused: false,
+      pendingMinigame: state.pendingMinigame,  // preserve so modal re-shows on reload
+      activeEvent: null,                        // don't save mid-dilemma; re-trigger on load
       electionResult: state.electionResult === 'none' ? 'none' : state.electionResult,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(toSave));
@@ -119,6 +121,29 @@ function migrate(raw: Partial<GameState>): GameState {
     version = 5;
   }
 
+  if (version < 6) {
+    // v5 → v6: minigames, abilities, events, volunteers (all defaults; run-level fields reset safely).
+    // Also patch existing RivalState objects with new archetype fields.
+    const patchedRivals = ((raw as any).rivals ?? []).map((r: any) => ({
+      name: r.name ?? r.archetypeId ?? 'Opponent',
+      conversionMod: r.conversionMod ?? 1.0,
+      strongBlocs: r.strongBlocs ?? [],
+      weakBlocs: r.weakBlocs ?? [],
+      ...r,
+    }));
+    raw = {
+      ...raw,
+      rivals: patchedRivals,
+      pendingMinigame: null,
+      minigameCooldowns: {},
+      abilityCooldowns: {},
+      activeEvent: null,
+      eventModifiers: [],
+      eventCooldown: 0,
+    };
+    version = 6;
+  }
+
   // Merge with defaults so any future new fields get safe initial values.
   const defaults = defaultState();
   const merged: GameState = { ...defaults, ...raw, version: SAVE_VERSION };
@@ -127,6 +152,10 @@ function migrate(raw: Partial<GameState>): GameState {
   if (merged.electionResult !== 'none') {
     merged.electionResult = 'none';
     merged.timerRemaining = Math.max(merged.timerRemaining, 1);
+  }
+  // Re-pause if a minigame is queued (isPaused was cleared on save).
+  if (merged.pendingMinigame !== null) {
+    merged.isPaused = true;
   }
 
   return merged;

@@ -1,8 +1,9 @@
 import { BAL, PHASE1 } from '../config/balance';
 import { GENERATORS } from '../config/generators';
 import { UPGRADES } from '../config/upgrades';
+import { EVENTS } from '../config/events';
 import { computePerkEffects } from './prestige';
-import type { GameState, BlocState, RivalState, BlocStaticDef, RivalStaticDef, Era } from '../types';
+import type { GameState, BlocState, RivalState, BlocStaticDef, RivalStaticDef, Era, EventModifier, ActiveEventState } from '../types';
 
 // TUNING TARGET: passive player auto-conversion rate per bloc (voters/sec).
 // Tapping is the primary driver; this is a small trickle.
@@ -53,8 +54,59 @@ function cloneBlocs(blocs: BlocState[]): BlocState[] {
 }
 
 function cloneRivals(rivals: RivalState[]): RivalState[] {
-  return rivals.map(r => ({ ...r }));
+  return rivals.map(r => ({ ...r, strongBlocs: [...r.strongBlocs], weakBlocs: [...r.weakBlocs] }));
 }
+
+// --- Event helpers ---
+
+function canFireEvent(event: import('../types').EventDef, state: GameState): boolean {
+  switch (event.stateCheck) {
+    case 'heavy_flips':
+      return Object.values(state.flipFlopCounts).reduce((s, v) => s + v, 0) > 3;
+    case 'low_charisma':
+      return state.charisma < 2;
+    case 'high_volunteers':
+      return state.volunteers > 500;
+    case 'timer_late':
+      return state.phase === 'general' && state.timerRemaining <= 22;
+    default:
+      return true;
+  }
+}
+
+function sumConvMult(modifiers: EventModifier[]): number {
+  return modifiers.filter(m => m.kind === 'conversionMult').reduce((s, m) => s * m.magnitude, 1.0);
+}
+
+function sumCashMult(modifiers: EventModifier[]): number {
+  return modifiers.filter(m => m.kind === 'cashMult').reduce((s, m) => s * m.magnitude, 1.0);
+}
+
+function sumBlocDelta(modifiers: EventModifier[], groupId: string): number {
+  return modifiers.filter(m => m.kind === 'blocSupportDelta' && m.groupId === groupId)
+    .reduce((s, m) => s + m.magnitude, 0);
+}
+
+function rivalConvMult(modifiers: EventModifier[], rivalIndex: number): number {
+  return modifiers.filter(m => m.kind === 'rivalConvMult' && m.rivalIndex === rivalIndex)
+    .reduce((s, m) => s * m.magnitude, 1.0);
+}
+
+function decayModifiers(modifiers: EventModifier[], dt: number): EventModifier[] {
+  return modifiers.map(m => ({ ...m, duration: m.duration - dt })).filter(m => m.duration > 0);
+}
+
+function decayCooldowns(cooldowns: Record<string, number>, dt: number): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const [k, v] of Object.entries(cooldowns)) {
+    const rem = v - dt;
+    if (rem > 0) next[k] = rem;
+  }
+  return next;
+}
+
+let _eventIdCounter = 0;
+function nextEventId(): string { return `evt_${Date.now()}_${_eventIdCounter++}`; }
 
 // ---------------------------------------------------------------------------
 // Exported helpers
@@ -166,9 +218,13 @@ export function initElection(
 
   const newRivals: RivalState[] = rivals.map(r => ({
     archetypeId: r.archetypeId,
+    name: r.name,
     lean: r.lean,
     share: 0,
     eliminated: false,
+    conversionMod: r.conversionMod,
+    strongBlocs: [...r.strongBlocs],
+    weakBlocs: [...r.weakBlocs],
   }));
 
   const baseTimer = BAL.generalTimerBase * BAL.timerGrowth ** officeIndex;
@@ -283,13 +339,17 @@ export function tick(state: GameState, dt: number): GameState {
 
   const blocCount = blocs.length;
   const mediaDarlingMult = computePerkEffects(state).mediaDarlingMult;
+  const eventConvMult = sumConvMult(state.eventModifiers);
+  const eventCashMult = sumCashMult(state.eventModifiers);
 
   // --- Player passive + rival conversion per bloc ---
   // Each candidate drains undecided first; any remaining demand steals from
   // the opponent's decided voters at the same rate (no efficiency penalty).
   for (const bloc of blocs) {
-    const support = state.blocSupport[bloc.groupId] ?? 1.0;
-    const playerRate = BASE_CONV * mediaDarlingMult * support * stack;
+    const baseSupport = state.blocSupport[bloc.groupId] ?? 1.0;
+    const support = Math.min(BAL.blocSupportMax,
+      Math.max(BAL.blocSupportMin, baseSupport + sumBlocDelta(state.eventModifiers, bloc.groupId)));
+    const playerRate = BASE_CONV * mediaDarlingMult * support * stack * eventConvMult;
     const playerDemand = playerRate * dt;
     const playerFromUndecided = Math.min(playerDemand, bloc.undecided);
     bloc.undecided -= playerFromUndecided;
@@ -307,7 +367,12 @@ export function tick(state: GameState, dt: number): GameState {
       const rival = rivals[ri];
       if (rival.eliminated) continue;
       const leanMatch = 0.5 + 0.5 * (1 - Math.abs(rival.lean - bloc.lean) / 2);
-      const rivalRate = (state.rivalRate / blocCount) * leanMatch;
+      // Archetype strong/weak bloc modifiers
+      let archMod = rival.conversionMod;
+      if (rival.strongBlocs.includes(bloc.groupId)) archMod *= BAL.abilityArchetypeConvBonus;
+      if (rival.weakBlocs.includes(bloc.groupId))   archMod *= BAL.abilityArchetypeConvPenalty;
+      const rConvMult = rivalConvMult(state.eventModifiers, ri);
+      const rivalRate = (state.rivalRate / blocCount) * leanMatch * archMod * rConvMult;
       const rivalDemand = rivalRate * dt;
       const rivalFromUndecided = Math.min(rivalDemand, bloc.undecided);
       bloc.undecided -= rivalFromUndecided;
@@ -354,7 +419,7 @@ export function tick(state: GameState, dt: number): GameState {
     }
   }
 
-  cash += cashPerSec * stack * dt;
+  cash += cashPerSec * stack * dt * eventCashMult;
 
   // --- Update tallies ---
   let voters = 0;
@@ -469,6 +534,86 @@ export function tick(state: GameState, dt: number): GameState {
   let finalVoters = 0;
   for (const bloc of blocs) finalVoters += bloc.player;
 
+  // --- Volunteer accrual ---
+  const volunteerGain = (BAL.baseVolunteerRate + state.charisma * BAL.charismaVolunteerRate) * dt;
+  const newVolunteers = state.volunteers + volunteerGain;
+
+  // --- Decay cooldowns and event modifiers ---
+  const newAbilityCooldowns  = decayCooldowns(state.abilityCooldowns, dt);
+  const newMinigameCooldowns = decayCooldowns(state.minigameCooldowns, dt);
+  const decayedModifiers     = decayModifiers(state.eventModifiers, dt);
+  const newEventCooldown     = Math.max(0, state.eventCooldown - dt);
+
+  // --- Event triggering (State era+) ---
+  let newActiveEvent: ActiveEventState | null = state.activeEvent;
+  let newEventModifiers = decayedModifiers;
+  let newEventCooldown2 = newEventCooldown;
+  let newIsPaused: boolean = state.isPaused;
+
+  const era = eraForOffice(state.officeIndex);
+  if ((era === 'state' || era === 'federal') && !state.activeEvent) {
+    // Scheduled: October Surprise when timer crosses 20s in a general
+    const crossedLate = state.phase === 'general'
+      && state.timerRemaining > 20
+      && (state.timerRemaining - dt) <= 20;
+    const octAlreadyFired = newEventModifiers.some(m => m.id.includes('oct'));
+
+    if (crossedLate && !octAlreadyFired) {
+      const oct = EVENTS.find(e => e.id === 'october_surprise');
+      if (oct) {
+        newActiveEvent = { eventId: oct.id };
+        newIsPaused = true;
+        newEventCooldown2 = BAL.eventMinGap;
+      }
+    } else if (newEventCooldown <= 0 && Math.random() < BAL.eventBaseChance * dt) {
+      // Random / state-triggered event
+      const eligible = EVENTS.filter(e =>
+        e.id !== 'october_surprise' &&
+        e.unlockOfficeIndex <= state.officeIndex &&
+        canFireEvent(e, state)
+      );
+      if (eligible.length > 0) {
+        const ev = eligible[Math.floor(Math.random() * eligible.length)];
+        if (ev.type === 'dilemma') {
+          // Dilemma: pause the race
+          let targetRivalIndex: number | undefined;
+          if (!ev.targetsSelf && rivals.length > 0) {
+            const live = rivals.map((r, i) => ({ i, elim: r.eliminated })).filter(x => !x.elim);
+            if (live.length > 0) {
+              targetRivalIndex = live[Math.floor(Math.random() * live.length)].i;
+            }
+          }
+          newActiveEvent = { eventId: ev.id, targetRivalIndex };
+          newIsPaused = true;
+        } else {
+          // Modifier: apply instantly
+          let rivalIdx: number | undefined;
+          if (!ev.targetsSelf) {
+            const live = rivals.map((r, i) => ({ i, elim: r.eliminated })).filter(x => !x.elim);
+            if (live.length > 0) {
+              rivalIdx = live[Math.floor(Math.random() * live.length)].i;
+            } else {
+              // No live rivals — skip
+              rivalIdx = undefined;
+            }
+          }
+          if (ev.modKind) {
+            const mod: EventModifier = {
+              id: nextEventId(),
+              label: ev.name,
+              kind: ev.modKind,
+              magnitude: ev.modMagnitude ?? 1.0,
+              duration: ev.modDuration ?? 20,
+              rivalIndex: rivalIdx,
+            };
+            newEventModifiers = [...newEventModifiers, mod];
+          }
+        }
+        newEventCooldown2 = BAL.eventMinGap;
+      }
+    }
+  }
+
   return {
     ...state,
     blocs,
@@ -478,5 +623,12 @@ export function tick(state: GameState, dt: number): GameState {
     timerRemaining: finalTimer,
     isRunoff,
     electionResult: result,
+    volunteers: newVolunteers,
+    abilityCooldowns: newAbilityCooldowns,
+    minigameCooldowns: newMinigameCooldowns,
+    eventModifiers: newEventModifiers,
+    eventCooldown: newEventCooldown2,
+    activeEvent: newActiveEvent,
+    isPaused: newIsPaused,
   };
 }

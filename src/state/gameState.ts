@@ -1,15 +1,19 @@
 import type { GameState, RunHistoryEntry } from '../types';
 import { INTEREST_GROUPS } from '../config/blocs';
-import { CITY_COUNCIL_RIVALS } from '../config/rivals';
+import { getRivals } from '../config/rivals';
 import { ISSUES } from '../config/issues';
 import { BAL } from '../config/balance';
 import { getOffice, MAX_OFFICE_INDEX } from '../config/offices';
 import { PERKS } from '../config/perks';
+import { DEBATES } from '../config/minigames';
+import { ABILITIES } from '../config/abilities';
+import { getMinigame } from '../config/minigames';
+import { getEvent } from '../config/events';
 import { initElection, playerPct } from '../sim/election';
 import { computeAllBlocSupport, computePosition, eraForOffice, getIdeology } from '../sim/platform';
 import { computePerkEffects, computePrestigeGain, checkAchievements, officeName } from '../sim/prestige';
 
-export const SAVE_VERSION = 5; // Phase 4: prestige perks, run history, highestOfficeCompleted
+export const SAVE_VERSION = 6; // Phase 5: minigames, abilities, events, volunteers, archetypes
 
 function officeRivalRate(officeIndex: number, phase: 'primary' | 'general'): number {
   const o = getOffice(officeIndex);
@@ -61,6 +65,13 @@ function freshRunState(meta: Pick<GameState,
     runNumber: meta.runNumber,
     highestOfficeCompleted: meta.highestOfficeCompleted,
 
+    pendingMinigame: null,
+    minigameCooldowns: {},
+    abilityCooldowns: {},
+    activeEvent: null,
+    eventModifiers: [],
+    eventCooldown: 0,
+
     lastCritHit: false,
     isPaused: false,
     electionResult: 'none',
@@ -72,7 +83,7 @@ function freshRunState(meta: Pick<GameState,
 
   return initElection(
     skeleton, officeIndex, startPhase,
-    INTEREST_GROUPS, CITY_COUNCIL_RIVALS,
+    INTEREST_GROUPS, getRivals(officeIndex, startPhase),
     officeRivalRate(officeIndex, startPhase),
   );
 }
@@ -204,13 +215,23 @@ export function advanceElection(state: GameState): GameState {
     if (!achievements.includes(a)) achievements.push(a);
   }
 
+  // Queue mandatory debate for County+ era (officeIndex >= 2).
+  const electionsCompleted = nextOffice * 2 + (nextPhase === 'primary' ? 0 : 1);
+  const pendingMinigame = nextOffice >= 2
+    ? DEBATES[electionsCompleted % DEBATES.length].id
+    : null;
+
   return initElection(
     {
       ...state,
       officeIndex: nextOffice,
       phase: nextPhase,
       electionResult: 'none',
-      isPaused: false,
+      isPaused: pendingMinigame !== null,  // pause until debate is resolved
+      pendingMinigame,
+      activeEvent: null,
+      eventModifiers: [],
+      eventCooldown: 0,
       blocSupport: newBlocSupport,
       ideologyId: ideology.id,
       highestOfficeCompleted,
@@ -219,9 +240,181 @@ export function advanceElection(state: GameState): GameState {
     nextOffice,
     nextPhase,
     INTEREST_GROUPS,
-    CITY_COUNCIL_RIVALS,
+    getRivals(nextOffice, nextPhase),
     officeRivalRate(nextOffice, nextPhase),
   );
+}
+
+/** Apply a minigame choice and clear the pending minigame. */
+export function applyMinigameChoice(state: GameState, minigameId: string, choiceId: string): GameState {
+  const minigame = getMinigame(minigameId);
+  if (!minigame) return { ...state, pendingMinigame: null, isPaused: false };
+
+  const choice = minigame.choices.find(c => c.id === choiceId);
+  if (!choice) return { ...state, pendingMinigame: null, isPaused: false };
+
+  let { cash, charisma, platform, flipFlopCounts } = state;
+
+  for (const eff of choice.effects) {
+    if (eff.kind === 'charisma') {
+      charisma += eff.delta;
+    } else if (eff.kind === 'cash') {
+      cash = Math.max(0, cash + eff.amount);
+    } else if (eff.kind === 'stanceCommit') {
+      platform = { ...platform, [eff.issueId]: eff.stanceId };
+      // Debate commits count as the first stance action (no cash cost, but marks record)
+      flipFlopCounts = {
+        ...flipFlopCounts,
+        [eff.issueId]: Math.max(1, (flipFlopCounts[eff.issueId] ?? 0) + 1),
+      };
+    }
+    // blocSupport deltas applied below after recomputing base support
+  }
+
+  // Recompute base bloc support from any stance changes
+  const era = eraForOffice(state.officeIndex);
+  const newBlocSupport = computeAllBlocSupport(platform, state.flipFlopTrustMultipliers, INTEREST_GROUPS, era);
+
+  // Apply minigame bloc deltas on top
+  for (const eff of choice.effects) {
+    if (eff.kind === 'blocSupport') {
+      newBlocSupport[eff.groupId] = Math.min(BAL.blocSupportMax,
+        Math.max(BAL.blocSupportMin, (newBlocSupport[eff.groupId] ?? 1.0) + eff.delta));
+    }
+  }
+
+  // Optional minigame: set cooldown
+  const minigameCooldowns = minigame.cooldownSeconds
+    ? { ...state.minigameCooldowns, [minigame.type]: minigame.cooldownSeconds }
+    : state.minigameCooldowns;
+
+  return {
+    ...state,
+    cash,
+    charisma,
+    platform,
+    flipFlopCounts,
+    blocSupport: newBlocSupport,
+    pendingMinigame: null,
+    minigameCooldowns,
+    isPaused: false,
+  };
+}
+
+/** Activate a campaign ability. Returns updated state or null if can't fire. */
+export function activateAbility(
+  state: GameState,
+  abilityId: string,
+  targetId?: string,
+): GameState | null {
+  const ability = ABILITIES.find(a => a.id === abilityId);
+  if (!ability) return null;
+  if (state.officeIndex < ability.unlockOfficeIndex) return null;
+  if ((state.abilityCooldowns[abilityId] ?? 0) > 0) return null;
+
+  const effectiveCost = Math.round(ability.baseCost * BAL.timerGrowth ** state.officeIndex);
+  if (state.cash < effectiveCost) return null;
+
+  let cash = state.cash - effectiveCost;
+  const abilityCooldowns = { ...state.abilityCooldowns, [abilityId]: ability.baseCooldown };
+  let eventModifiers = [...state.eventModifiers];
+
+  if (abilityId === 'fundraiser') {
+    cash += effectiveCost * ability.effectMagnitude;
+  } else if (abilityId === 'court_interest_group' && targetId) {
+    eventModifiers.push({
+      id: `ab_${abilityId}_${Date.now()}`,
+      label: `Courting ${targetId.replace(/_/g, ' ')}`,
+      kind: 'blocSupportDelta',
+      magnitude: ability.effectMagnitude,
+      duration: ability.effectDuration ?? 20,
+      groupId: targetId,
+    });
+  } else if (abilityId === 'hitpiece' && targetId !== undefined) {
+    const ri = parseInt(targetId, 10);
+    eventModifiers.push({
+      id: `ab_${abilityId}_${Date.now()}`,
+      label: `Hit Piece — ${state.rivals[ri]?.name ?? 'Rival'}`,
+      kind: 'rivalConvMult',
+      magnitude: ability.effectMagnitude,
+      duration: ability.effectDuration ?? 20,
+      rivalIndex: ri,
+    });
+  } else if (ability.target === 'self') {
+    eventModifiers.push({
+      id: `ab_${abilityId}_${Date.now()}`,
+      label: ability.name,
+      kind: 'conversionMult',
+      magnitude: ability.effectMagnitude,
+      duration: ability.effectDuration ?? 15,
+    });
+  }
+
+  return { ...state, cash, abilityCooldowns, eventModifiers };
+}
+
+/** Resolve a dilemma event choice. Clears activeEvent and applies effects. */
+export function resolveEvent(state: GameState, eventId: string, choiceId: string): GameState {
+  const event = getEvent(eventId);
+  if (!event || event.type !== 'dilemma') {
+    return { ...state, activeEvent: null, isPaused: false };
+  }
+
+  const choice = event.choices?.find(c => c.id === choiceId);
+  if (!choice) return { ...state, activeEvent: null, isPaused: false };
+
+  let { cash, charisma } = state;
+  let newBlocSupport = { ...state.blocSupport };
+  let eventModifiers = [...state.eventModifiers];
+  const { targetRivalIndex } = state.activeEvent ?? {};
+
+  for (const eff of choice.effects) {
+    if (eff.kind === 'charisma') {
+      charisma += eff.delta;
+    } else if (eff.kind === 'cash') {
+      cash = Math.max(0, cash + eff.amount);
+    } else if (eff.kind === 'blocSupport') {
+      newBlocSupport[eff.groupId] = Math.min(BAL.blocSupportMax,
+        Math.max(BAL.blocSupportMin, (newBlocSupport[eff.groupId] ?? 1.0) + eff.delta));
+    } else if (eff.kind === 'modifier') {
+      eventModifiers.push({
+        id: `ev_${eventId}_${Date.now()}`,
+        label: `${event.name}`,
+        kind: eff.modKind,
+        magnitude: eff.magnitude,
+        duration: eff.duration,
+        groupId: eff.groupId,
+        rivalIndex: eff.rivalIndex ?? targetRivalIndex,
+      });
+    }
+  }
+
+  return {
+    ...state,
+    cash,
+    charisma,
+    blocSupport: newBlocSupport,
+    eventModifiers,
+    activeEvent: null,
+    isPaused: false,
+  };
+}
+
+/** Open an optional minigame (town hall / gala). Returns null if on cooldown or can't afford. */
+export function openOptionalMinigame(state: GameState, minigameId: string): GameState | null {
+  const mg = getMinigame(minigameId);
+  if (!mg) return null;
+  if (mg.mandatory) return null;
+  const cooldown = state.minigameCooldowns[mg.type] ?? 0;
+  if (cooldown > 0) return null;
+  const cost = mg.cashCost ?? 0;
+  if (state.cash < cost) return null;
+  return {
+    ...state,
+    cash: state.cash - cost,
+    pendingMinigame: minigameId,
+    isPaused: true,
+  };
 }
 
 /** Buy a prestige perk. Returns new state or null if prerequisites unmet or unaffordable. */

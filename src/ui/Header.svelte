@@ -1,21 +1,31 @@
 <script lang="ts">
   import { gameStore, displayPct, displayTimer, displayTimerLabel, displayCash } from '../state/store';
   import { playerPct, totalPool } from '../sim/election';
-  import { CITY_COUNCIL_RIVALS } from '../config/rivals';
+  import { getOffice } from '../config/offices';
 
   $: state = $gameStore;
   $: pct = playerPct(state);
-  $: rivalName = CITY_COUNCIL_RIVALS[0]?.name ?? 'Opponent';
-  $: rivalPct = state.rivals[0] && !state.rivals[0].eliminated
-    ? (state.rivals[0].share / Math.max(totalPool(state), 1)) * 100
-    : 0;
-  $: officeName = 'City Council';
+  $: pool = totalPool(state);
+
+  // Lead rival: highest share among non-eliminated rivals
+  $: leadRival = state.rivals.reduce<{ name: string; share: number } | null>((best, r) => {
+    if (r.eliminated) return best;
+    if (!best || r.share > best.share) return { name: r.name, share: r.share };
+    return best;
+  }, null);
+
+  $: leadRivalPct = leadRival && pool > 0 ? (leadRival.share / pool) * 100 : 0;
+  $: liveRivalCount = state.rivals.filter(r => !r.eliminated).length;
+  $: extraRivals = liveRivalCount - 1;  // rivals beyond the lead one
+
+  $: office = (() => { try { return getOffice(state.officeIndex); } catch { return null; } })();
+  $: officeName = office?.name ?? 'City Council';
   $: phaseName = state.phase === 'primary' ? 'Primary' : 'General';
 </script>
 
 <header class="race-header">
   <div class="race-title">
-    {officeName} {phaseName}
+    {officeName} · {phaseName}
     {#if state.isRunoff}<span class="runoff-badge">RUNOFF</span>{/if}
   </div>
 
@@ -23,12 +33,21 @@
     <div class="progress-bar-wrap">
       <div class="progress-bar">
         <div class="fill player" style="width: {Math.min(pct * 100, 100)}%"></div>
-        <div class="fill rival" style="width: {Math.min(rivalPct, 100)}%"></div>
+        {#if leadRival}
+          <div class="fill rival" style="width: {Math.min(leadRivalPct, 100)}%"></div>
+        {/if}
         <div class="threshold-line"></div>
       </div>
       <div class="progress-labels">
         <span class="player-pct">{$displayPct}</span>
-        <span class="rival-pct">{rivalPct.toFixed(1)}% {rivalName}</span>
+        {#if leadRival}
+          <span class="rival-pct">
+            {leadRivalPct.toFixed(1)}% {leadRival.name}
+            {#if extraRivals > 0}<span class="extra-rivals">+{extraRivals}</span>{/if}
+          </span>
+        {:else}
+          <span class="rival-pct dim">No rivals</span>
+        {/if}
       </div>
     </div>
   </div>
@@ -101,6 +120,12 @@
   }
   .player-pct { color: #4a9eff; font-weight: bold; }
   .rival-pct  { color: #e74c3c; }
+  .rival-pct.dim { color: #555; }
+  .extra-rivals {
+    color: #e89080;
+    font-size: 0.56rem;
+    margin-left: 3px;
+  }
 
   .stats-row {
     display: flex;
