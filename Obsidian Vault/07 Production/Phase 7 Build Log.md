@@ -277,6 +277,39 @@ If an office feels wrong, adjust `rivalRatePrimary` and/or `rivalRateGeneral` in
 
 ---
 
+---
+
+## Milestone 7.8 — Deployment & Mobile Fix
+
+### GitHub Pages deployment
+
+**Live URL:** https://steventhephan.github.io/The-Long-Game/
+
+**Setup:**
+- `vite.config.ts`: `base: '/The-Long-Game/'` so asset paths resolve correctly on GitHub Pages
+- `.github/workflows/deploy.yml`: GitHub Actions workflow — triggers on every push to `main`, runs `npm ci && npm run build`, deploys `dist/` via `actions/deploy-pages`
+- GitHub Pages source: set to "GitHub Actions" (workflow mode, not branch mode)
+- Git email: `153556925+Steventhephan@users.noreply.github.com` (GitHub no-reply, avoids email privacy rejection)
+
+**To update the live game:** push to `main`. Deploy runs automatically in ~30s.
+
+### iOS Safari horizontal layout fix
+
+**Symptom:** Right ~10–20% of the game was clipped on iPhone 15 Pro Max. Legacy tab showed only "Lega".
+
+**Root cause:** `position: relative` on `.app-shell` with `overflow: hidden` on html/body was not sufficient. iOS Safari's scroll containers (`overflow-y: auto`) ignore parent `overflow: hidden` constraints, and document-level overflow is computed before CSS clip applies, allowing content to escape the visual boundary.
+
+**Fix:** Changed `.app-shell` from `position: relative; height: 100%` to `position: fixed; top: 0; left: 0; right: 0; bottom: 0`. A `position: fixed` element is always sized relative to the visual viewport — it physically cannot be wider than what the screen shows. `max-width: 480px; margin: 0 auto` still applies for centering on wider screens.
+
+**Also applied:** `overflow-x: hidden` to all `overflow-y: auto` scroll containers (CampaignTab, OperationTab, LegacyTab, PlatformTab, EventModal, MinigameModal, PolicyModal choice lists, PresidencyWinOverlay). iOS Safari treats `overflow-y: auto` as a scroll container that can scroll both axes unless `overflow-x` is explicitly clamped.
+
+### Other changes in this milestone
+
+- Dev buttons removed: "Reset Save" and "⚙ Skip to…" dropdown deleted from CampaignTab. The `devSkipToElection` function remains in `gameState.ts` but is no longer exposed in the UI.
+- Dev skip updated (7.7): no longer pre-buys generators; gives starting cash only (`GENERATORS[0].baseCost × 8^targetOffice × 5`). Prevents the skip from trivializing playtests.
+
+---
+
 ## Architectural constraints carried into Phase 7
 
 - `SAVE_VERSION = 6`. Any new persisted field needs migration in `autosave.ts` and a `SAVE_VERSION` bump to 7.
