@@ -99,6 +99,7 @@
     max-height: 80vh;
     display: flex; flex-direction: column;
     overflow: hidden;
+    will-change: transform;
     animation: slide-up 0.2s cubic-bezier(0.34,1.2,0.64,1);
   }
   @keyframes slide-up {

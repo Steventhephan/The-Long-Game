@@ -7,7 +7,12 @@ import type { GameState, PerkEffects } from '../types';
 // Perk effects — aggregate all active perk bonuses into one flat object
 // ---------------------------------------------------------------------------
 
+// Perks/prestige change only on purchase or run reset — cache by array reference.
+let _perkCache: { perks: string[]; result: PerkEffects } | null = null;
+
 export function computePerkEffects(state: GameState): PerkEffects {
+  if (_perkCache && _perkCache.perks === state.perks) return _perkCache.result;
+
   let tapMult = 1.0;
   let critBonus = 0;
   let fieldCostMult = 1.0;
@@ -30,7 +35,9 @@ export function computePerkEffects(state: GameState): PerkEffects {
     if (e.kind === 'fastForward')       fastForwardSeconds = e.timerSeconds;
   }
 
-  return { tapMult, critBonus, fieldCostMult, financeCostMult, mediaDarlingMult, flipCostMult, headStartCash, fastForwardSeconds };
+  const result = { tapMult, critBonus, fieldCostMult, financeCostMult, mediaDarlingMult, flipCostMult, headStartCash, fastForwardSeconds };
+  _perkCache = { perks: state.perks, result };
+  return result;
 }
 
 // ---------------------------------------------------------------------------

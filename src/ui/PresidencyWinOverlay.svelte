@@ -96,6 +96,7 @@
     padding: 32px 20px 40px;
     gap: 0;
     min-height: 100%;
+    will-change: transform;
     animation: pres-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   }
   @keyframes pres-rise {

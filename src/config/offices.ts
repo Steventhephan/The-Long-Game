@@ -18,8 +18,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(0),
     primaryPool: Math.round(pool(0) * BAL.primaryPoolRatio),
     rivalCount: 1,
-    rivalRatePrimary: 25,  // TUNING TARGET: effective ~20.6/s; tap+crits alone (~14.4/s) loses; 2 canvassers flip it
-    rivalRateGeneral: 70,  // TUNING TARGET: 2.8× primary; accounts for 6 taps/sec + tab-switch generator buying during 90s general
+    rivalRatePrimary: 50,  // TUNING TARGET: effective ~43.75/s vs player tap 38.6/s (stack~1.79, no lean filter); pure tapping loses; 2 canvassers (4.47/s each) flip it
+    rivalRateGeneral: 70,  // TUNING TARGET: effective ~66/s; with FIELD_OUT_0=2.5, 6 canvassers (26.8/s) + tap (38.6/s) = 65.4 → genuine fight; more generators needed to win comfortably
     unlocks: ['canvasser', 'small_dollar_drive'],
   },
   {
@@ -30,8 +30,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(1),
     primaryPool: Math.round(pool(1) * BAL.primaryPoolRatio),
     rivalCount: 1,
-    rivalRatePrimary: 65,  // TUNING TARGET (~2.6× CC primary)
-    rivalRateGeneral: 182, // TUNING TARGET (2.8× primary)
+    rivalRatePrimary: 120, // TUNING TARGET: effective ~111.6/s (6 blocs, Sam Rivera mult ~0.930); passive only (67.1/s) loses; tapping+generators barely wins (118.6/s)
+    rivalRateGeneral: 170, // TUNING TARGET: effective ~191/s (Morgan Hayes mult ~1.124); player must build 4-5 phone banks mid-race while tapping throughout 126s timer
     unlocks: ['phone_bank', 'email_fundraising'],
   },
   {

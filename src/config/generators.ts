@@ -5,12 +5,13 @@ import { BAL } from './balance';
 //   baseCost(rung k)   = BASE_COST_0  × 8^k
 //   baseOutput(rung k) = BASE_OUTPUT_0 × BAL.rungOutputMultiplier^k
 // baseCost0 = 75 (tuned for ~4 taps/sec human — see Phase 1 Build Log).
-// rungOutputMultiplier reduced 7→6 (Phase 7.5): 7× compounding outpaced rival scaling,
-// letting a single higher-rung generator trivially dominate rivals at the same tier.
+// rungOutputMultiplier reduced 7→6→5 (Phase 7.5): 6× compounding still too fast —
+// Phone Bank (rung 1) at 15 v/s × stack 1.79 = 26.8 effective, overwhelming Mayor rival.
+// At 5×: Phone Bank = 12.5 × 1.79 = 22.4/s; player with 10c+1PB (67.1/s) stays below Mayor rival (111.6/s).
 
 const BASE_COST_0   = 150; // TUNING TARGET: doubled from 75 — at 6 taps/sec cash flow, $75 base let players buy too many generators mid-race via tab-switching
-const FIELD_OUT_0   = 5.0;  // TUNING TARGET: voters/sec at rung 0
-const FINANCE_OUT_0 = 2.0;  // TUNING TARGET: cash/sec at rung 0
+const FIELD_OUT_0   = 2.5;  // TUNING TARGET: halved from 5.0 — stack multiplier (~1.79) was amplifying each canvasser to 8.95 effective v/s; 2.5 → 4.47 effective
+const FINANCE_OUT_0 = 1.0;  // TUNING TARGET: halved from 2.0 — slows finance→field feedback loop that let players buy unlimited mid-race canvassers
 
 function cost(rung: number)          { return Math.round(BASE_COST_0 * 8 ** rung); }
 function fieldOutput(rung: number)   { return parseFloat((FIELD_OUT_0   * BAL.rungOutputMultiplier ** rung).toPrecision(4)); }

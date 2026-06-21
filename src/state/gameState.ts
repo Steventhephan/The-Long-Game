@@ -1,5 +1,5 @@
 import type { GameState, RunHistoryEntry } from '../types';
-import { INTEREST_GROUPS } from '../config/blocs';
+import { INTEREST_GROUPS, blocsUnlockedForOffice } from '../config/blocs';
 import { GENERATORS } from '../config/generators';
 import { getRivals } from '../config/rivals';
 import { ISSUES } from '../config/issues';
@@ -83,7 +83,7 @@ function freshRunState(meta: Pick<GameState,
 
   return initElection(
     skeleton, officeIndex, startPhase,
-    INTEREST_GROUPS, getRivals(officeIndex, startPhase),
+    blocsUnlockedForOffice(officeIndex), getRivals(officeIndex, startPhase),
     officeRivalRate(officeIndex, startPhase),
   );
 }
@@ -233,7 +233,7 @@ export function advanceElection(state: GameState): GameState {
     },
     nextOffice,
     nextPhase,
-    INTEREST_GROUPS,
+    blocsUnlockedForOffice(nextOffice),
     getRivals(nextOffice, nextPhase),
     officeRivalRate(nextOffice, nextPhase),
   );
@@ -504,7 +504,7 @@ export function devSkipToElection(
 
   return initElection(
     skeleton, targetOffice, targetPhase,
-    INTEREST_GROUPS, getRivals(targetOffice, targetPhase),
+    blocsUnlockedForOffice(targetOffice), getRivals(targetOffice, targetPhase),
     officeRivalRate(targetOffice, targetPhase),
   );
 }

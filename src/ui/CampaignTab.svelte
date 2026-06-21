@@ -424,6 +424,7 @@
     -webkit-text-stroke: 1.5px #000;
     pointer-events: none;
     white-space: nowrap;
+    will-change: transform;
     animation: float-up 0.75s ease-out forwards;
   }
   .knock-feedback.crit {
@@ -441,6 +442,7 @@
     border: 3px solid #f1c40f;
     pointer-events: none;
     z-index: 4;
+    will-change: transform;
     animation: ring-expand 0.55s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
   }
   @keyframes ring-expand {

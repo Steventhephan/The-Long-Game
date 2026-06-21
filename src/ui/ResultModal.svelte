@@ -170,6 +170,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    will-change: transform;
     animation: pop-in 0.25s cubic-bezier(0.34,1.56,0.64,1);
   }
   @keyframes pop-in {

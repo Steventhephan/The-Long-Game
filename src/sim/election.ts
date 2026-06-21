@@ -156,7 +156,14 @@ export interface UpgradeEffects {
   financeMult: number;
 }
 
+// Upgrades/perks change only on purchase — cache by array reference.
+let _upgradeCache: { upgrades: string[]; perks: string[]; result: UpgradeEffects } | null = null;
+
 export function computeUpgradeEffects(state: GameState): UpgradeEffects {
+  if (_upgradeCache && _upgradeCache.upgrades === state.upgrades && _upgradeCache.perks === state.perks) {
+    return _upgradeCache.result;
+  }
+
   let tapMult = 1;
   let critBonus = 0;
   let fieldMult = 1;
@@ -171,17 +178,18 @@ export function computeUpgradeEffects(state: GameState): UpgradeEffects {
     if (e.kind === 'financeMult') financeMult *= e.value;
   }
 
-  // Apply prestige perk bonuses on top of upgrade effects.
   const perks = computePerkEffects(state);
   tapMult *= perks.tapMult;
   critBonus += perks.critBonus;
 
-  return {
+  const result = {
     tapMult,
     critChance: Math.min(BAL.critBaseChance + critBonus, BAL.critChanceCap),
     fieldMult,
     financeMult,
   };
+  _upgradeCache = { upgrades: state.upgrades, perks: state.perks, result };
+  return result;
 }
 
 // ---------------------------------------------------------------------------

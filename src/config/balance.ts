@@ -4,7 +4,7 @@
 export const BAL = {
   generatorCostGrowth: 1.15,
   rungCostMultiplier: 8,
-  rungOutputMultiplier: 6,
+  rungOutputMultiplier: 5,
   critBaseChance: 0.05,
   critChanceCap: 0.50,
   critMultiplier: 5,
