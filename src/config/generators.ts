@@ -8,7 +8,7 @@ import { BAL } from './balance';
 // rungOutputMultiplier reduced 7→6 (Phase 7.5): 7× compounding outpaced rival scaling,
 // letting a single higher-rung generator trivially dominate rivals at the same tier.
 
-const BASE_COST_0   = 75;
+const BASE_COST_0   = 150; // TUNING TARGET: doubled from 75 — at 6 taps/sec cash flow, $75 base let players buy too many generators mid-race via tab-switching
 const FIELD_OUT_0   = 5.0;  // TUNING TARGET: voters/sec at rung 0
 const FINANCE_OUT_0 = 2.0;  // TUNING TARGET: cash/sec at rung 0
 
