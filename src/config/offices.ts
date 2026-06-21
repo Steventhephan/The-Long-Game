@@ -19,7 +19,7 @@ export const OFFICES: OfficeDef[] = [
     primaryPool: Math.round(pool(0) * BAL.primaryPoolRatio),
     rivalCount: 1,
     rivalRatePrimary: 25,  // TUNING TARGET: effective ~20.6/s; tap+crits alone (~14.4/s) loses; 2 canvassers flip it
-    rivalRateGeneral: 38,  // TUNING TARGET: 1.5× primary; larger pool + longer timer require higher rate to maintain pressure
+    rivalRateGeneral: 50,  // TUNING TARGET: 2× primary; generals are longer + player has carry-over gens, needs higher rate to maintain pressure
     unlocks: ['canvasser', 'small_dollar_drive'],
   },
   {
@@ -31,7 +31,7 @@ export const OFFICES: OfficeDef[] = [
     primaryPool: Math.round(pool(1) * BAL.primaryPoolRatio),
     rivalCount: 1,
     rivalRatePrimary: 65,  // TUNING TARGET (~2.6× CC primary)
-    rivalRateGeneral: 98,  // TUNING TARGET (1.5× primary)
+    rivalRateGeneral: 130, // TUNING TARGET (2× primary)
     unlocks: ['phone_bank', 'email_fundraising'],
   },
   {
@@ -43,7 +43,7 @@ export const OFFICES: OfficeDef[] = [
     primaryPool: Math.round(pool(2) * BAL.primaryPoolRatio),
     rivalCount: 2,
     rivalRatePrimary: 160, // TUNING TARGET (~2.5× Mayor; first era wall — 2 rivals, tight pool ceiling)
-    rivalRateGeneral: 240, // TUNING TARGET (1.5× primary)
+    rivalRateGeneral: 295, // TUNING TARGET (~1.85× primary; capped by pool-feasibility ceiling at this tier)
     unlocks: ['regional_office', 'donor_dinner'],
   },
   {
@@ -55,7 +55,7 @@ export const OFFICES: OfficeDef[] = [
     primaryPool: Math.round(pool(3) * BAL.primaryPoolRatio),
     rivalCount: 2,
     rivalRatePrimary: 400, // TUNING TARGET (~2.5× County)
-    rivalRateGeneral: 600, // TUNING TARGET (1.5× primary)
+    rivalRateGeneral: 800, // TUNING TARGET (2× primary)
     unlocks: ['campaign_bus', 'bundler_network'],
   },
   {
@@ -67,7 +67,7 @@ export const OFFICES: OfficeDef[] = [
     primaryPool: Math.round(pool(4) * BAL.primaryPoolRatio),
     rivalCount: 3,
     rivalRatePrimary: 985,  // TUNING TARGET (~2.5× County Exec; second era wall — 3 rivals)
-    rivalRateGeneral: 1475, // TUNING TARGET (1.5× primary)
+    rivalRateGeneral: 1875, // TUNING TARGET (~1.9× primary; capped near pool-feasibility ceiling at this tier)
     unlocks: ['rally_tour', 'national_fundraising'],
   },
   {
@@ -79,7 +79,7 @@ export const OFFICES: OfficeDef[] = [
     primaryPool: Math.round(pool(5) * BAL.primaryPoolRatio),
     rivalCount: 3,
     rivalRatePrimary: 2450, // TUNING TARGET (~2.5× State Leg)
-    rivalRateGeneral: 3675, // TUNING TARGET (1.5× primary)
+    rivalRateGeneral: 4900, // TUNING TARGET (2× primary)
     unlocks: ['tv_ad_spot', 'corporate_sponsorships'],
   },
   {
@@ -91,7 +91,7 @@ export const OFFICES: OfficeDef[] = [
     primaryPool: Math.round(pool(6) * BAL.primaryPoolRatio),
     rivalCount: 4,
     rivalRatePrimary: 6125, // TUNING TARGET (~2.5× Governor)
-    rivalRateGeneral: 9190, // TUNING TARGET (1.5× primary)
+    rivalRateGeneral: 12250, // TUNING TARGET (2× primary)
     unlocks: ['micro_targeting', 'lobbyist_alliance'],
   },
   {
@@ -103,7 +103,7 @@ export const OFFICES: OfficeDef[] = [
     primaryPool: Math.round(pool(7) * BAL.primaryPoolRatio),
     rivalCount: 4,
     rivalRatePrimary: 15300, // TUNING TARGET (~2.5× Senate)
-    rivalRateGeneral: 22950, // TUNING TARGET (1.5× primary)
+    rivalRateGeneral: 30600, // TUNING TARGET (2× primary)
     unlocks: ['national_media_team', 'super_pac'],
   },
 ];
