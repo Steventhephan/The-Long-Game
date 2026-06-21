@@ -158,6 +158,22 @@ function migrate(raw: Partial<GameState>): GameState {
     merged.isPaused = true;
   }
 
+  // Patch any rivals that are missing Phase 5 archetype fields.
+  // This can happen if a v6 save was written during HMR before initElection was updated.
+  merged.rivals = merged.rivals.map((r: any) => ({
+    name: r.name ?? r.archetypeId ?? 'Opponent',
+    conversionMod: r.conversionMod ?? 1.0,
+    strongBlocs: r.strongBlocs ?? [],
+    weakBlocs: r.weakBlocs ?? [],
+    ...r,
+  }));
+
+  // Ensure Phase 5 cooldown/modifier fields are never undefined.
+  if (!Array.isArray(merged.eventModifiers))    merged.eventModifiers    = [];
+  if (typeof merged.eventCooldown !== 'number') merged.eventCooldown     = 0;
+  if (typeof merged.abilityCooldowns  !== 'object' || merged.abilityCooldowns  === null) merged.abilityCooldowns  = {};
+  if (typeof merged.minigameCooldowns !== 'object' || merged.minigameCooldowns === null) merged.minigameCooldowns = {};
+
   return merged;
 }
 

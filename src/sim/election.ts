@@ -54,7 +54,12 @@ function cloneBlocs(blocs: BlocState[]): BlocState[] {
 }
 
 function cloneRivals(rivals: RivalState[]): RivalState[] {
-  return rivals.map(r => ({ ...r, strongBlocs: [...r.strongBlocs], weakBlocs: [...r.weakBlocs] }));
+  return rivals.map(r => ({
+    ...r,
+    conversionMod: r.conversionMod ?? 1.0,
+    strongBlocs: [...(r.strongBlocs ?? [])],
+    weakBlocs:   [...(r.weakBlocs   ?? [])],
+  }));
 }
 
 // --- Event helpers ---
@@ -339,8 +344,9 @@ export function tick(state: GameState, dt: number): GameState {
 
   const blocCount = blocs.length;
   const mediaDarlingMult = computePerkEffects(state).mediaDarlingMult;
-  const eventConvMult = sumConvMult(state.eventModifiers);
-  const eventCashMult = sumCashMult(state.eventModifiers);
+  const mods = state.eventModifiers ?? [];
+  const eventConvMult = sumConvMult(mods);
+  const eventCashMult = sumCashMult(mods);
 
   // --- Player passive + rival conversion per bloc ---
   // Each candidate drains undecided first; any remaining demand steals from
@@ -348,7 +354,7 @@ export function tick(state: GameState, dt: number): GameState {
   for (const bloc of blocs) {
     const baseSupport = state.blocSupport[bloc.groupId] ?? 1.0;
     const support = Math.min(BAL.blocSupportMax,
-      Math.max(BAL.blocSupportMin, baseSupport + sumBlocDelta(state.eventModifiers, bloc.groupId)));
+      Math.max(BAL.blocSupportMin, baseSupport + sumBlocDelta(mods, bloc.groupId)));
     const playerRate = BASE_CONV * mediaDarlingMult * support * stack * eventConvMult;
     const playerDemand = playerRate * dt;
     const playerFromUndecided = Math.min(playerDemand, bloc.undecided);
@@ -368,10 +374,10 @@ export function tick(state: GameState, dt: number): GameState {
       if (rival.eliminated) continue;
       const leanMatch = 0.5 + 0.5 * (1 - Math.abs(rival.lean - bloc.lean) / 2);
       // Archetype strong/weak bloc modifiers
-      let archMod = rival.conversionMod;
-      if (rival.strongBlocs.includes(bloc.groupId)) archMod *= BAL.abilityArchetypeConvBonus;
-      if (rival.weakBlocs.includes(bloc.groupId))   archMod *= BAL.abilityArchetypeConvPenalty;
-      const rConvMult = rivalConvMult(state.eventModifiers, ri);
+      let archMod = rival.conversionMod ?? 1.0;
+      if ((rival.strongBlocs ?? []).includes(bloc.groupId)) archMod *= BAL.abilityArchetypeConvBonus;
+      if ((rival.weakBlocs   ?? []).includes(bloc.groupId)) archMod *= BAL.abilityArchetypeConvPenalty;
+      const rConvMult = rivalConvMult(mods, ri);
       const rivalRate = (state.rivalRate / blocCount) * leanMatch * archMod * rConvMult;
       const rivalDemand = rivalRate * dt;
       const rivalFromUndecided = Math.min(rivalDemand, bloc.undecided);
@@ -539,9 +545,9 @@ export function tick(state: GameState, dt: number): GameState {
   const newVolunteers = state.volunteers + volunteerGain;
 
   // --- Decay cooldowns and event modifiers ---
-  const newAbilityCooldowns  = decayCooldowns(state.abilityCooldowns, dt);
-  const newMinigameCooldowns = decayCooldowns(state.minigameCooldowns, dt);
-  const decayedModifiers     = decayModifiers(state.eventModifiers, dt);
+  const newAbilityCooldowns  = decayCooldowns(state.abilityCooldowns  ?? {}, dt);
+  const newMinigameCooldowns = decayCooldowns(state.minigameCooldowns ?? {}, dt);
+  const decayedModifiers     = decayModifiers(mods, dt);
   const newEventCooldown     = Math.max(0, state.eventCooldown - dt);
 
   // --- Event triggering (State era+) ---

@@ -21,7 +21,11 @@ function gameLoop(now: number): void {
     accumulator += dt;
 
     while (accumulator >= TICK_STEP) {
-      gameStore.update(s => tick(s, TICK_STEP));
+      try {
+        gameStore.update(s => tick(s, TICK_STEP));
+      } catch (e) {
+        console.error('[tick]', e);
+      }
       accumulator -= TICK_STEP;
     }
   }
