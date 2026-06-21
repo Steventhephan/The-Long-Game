@@ -2,7 +2,7 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { gameStore, formatNum } from '../state/store';
   import { saveGame } from '../persist/autosave';
-  import { INTEREST_GROUPS, blocsUnlockedForOffice } from '../config/blocs';
+  import { INTEREST_GROUPS } from '../config/blocs';
   import { issuesForEra } from '../config/issues';
   import { applyStanceChange, flipFlopCost, eraForOffice } from '../sim/platform';
   import type { IssueDef, StanceDef } from '../types';
@@ -15,7 +15,6 @@
   $: state = $gameStore;
   $: era = eraForOffice(state.officeIndex);
   $: unlockedIssues = issuesForEra(era);
-  $: unlockedGroups = blocsUnlockedForOffice(state.officeIndex);
 
   // Step 1: issue selection; Step 2: stance selection
   let selectedIssue: IssueDef | null = null;
@@ -54,20 +53,6 @@
       saveGame(next);
     }
     close();
-  }
-
-  // Bloc effect helpers
-  function stanceEffects(issue: IssueDef, stance: StanceDef) {
-    const helped: string[] = [];
-    const hurt: string[] = [];
-    for (const group of unlockedGroups) {
-      const priority = group.priorityIssues.find(p => p.issueId === issue.id);
-      if (!priority) continue;
-      const alignment = (stance.scalar * priority.preferredScalar + 1) / 2;
-      if (alignment >= 0.65) helped.push(group.shortName);
-      else if (alignment <= 0.35) hurt.push(group.shortName);
-    }
-    return { helped, hurt };
   }
 
   function stanceAxisPct(scalar: number): number {
@@ -151,7 +136,6 @@
 
       <div class="stance-list">
         {#each selectedIssue.stances as stance}
-          {@const effects = stanceEffects(selectedIssue, stance)}
           {@const isSelected = selectedStance?.id === stance.id}
           {@const isCurrent = currentStanceId === stance.id}
           <button
@@ -169,12 +153,6 @@
             </div>
             <div class="stance-title">{stance.title}</div>
             <div class="stance-description">{stance.description}</div>
-            {#if effects.helped.length > 0 || effects.hurt.length > 0}
-              <div class="stance-effects">
-                {#each effects.helped as g}<span class="effect-pos">+ {g}</span>{/each}
-                {#each effects.hurt  as g}<span class="effect-neg">– {g}</span>{/each}
-              </div>
-            {/if}
           </button>
         {/each}
       </div>
@@ -314,10 +292,6 @@
 
   .stance-title { font-size: 0.78rem; font-weight: bold; color: #f0ece4; }
   .stance-description { font-size: 0.65rem; color: #999; line-height: 1.4; }
-
-  .stance-effects { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-  .effect-pos { font-size: 0.6rem; color: #4a8a4a; }
-  .effect-neg { font-size: 0.6rem; color: #8a4a4a; }
 
   /* Confirm */
   .confirm-row {

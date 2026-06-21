@@ -142,6 +142,7 @@
   .ideology-badge {
     font-size: 0.68rem; font-weight: bold; letter-spacing: 0.07em;
     padding: 2px 8px; border-radius: 10px; border: 1px solid; flex-shrink: 0;
+    align-self: center;
   }
 
   .position-wrap { display: flex; flex-direction: column; gap: 2px; }

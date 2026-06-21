@@ -56,7 +56,7 @@
     </div>
     {#if preview > 0}
       <div class="prestige-preview">
-        <span class="preview-label">Bank now</span>
+        <span class="preview-label">This run</span>
         <span class="preview-value">+{preview}</span>
       </div>
     {/if}
