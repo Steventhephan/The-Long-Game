@@ -135,7 +135,7 @@
 
   /* Ideology header */
   .ideology-header {
-    background: #1a1a2e; border: 1px solid #2a2a4a;
+    background: #1C1510; border: 1px solid #2E2218;
     border-radius: 6px; padding: 6px 10px;
     display: flex; flex-direction: column; gap: 5px;
   }
@@ -149,7 +149,7 @@
   .axis-labels { display: flex; justify-content: space-between; font-size: 0.55rem; color: #666; }
   .position-bar {
     position: relative; height: 8px;
-    background: #2a2a3e; border-radius: 4px; overflow: hidden;
+    background: #2E2218; border-radius: 4px; overflow: hidden;
   }
   .ideo-zone { position: absolute; top: 0; height: 100%; }
   .center-tick { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.25); }
@@ -162,10 +162,10 @@
   .promises-section { display: flex; flex-direction: column; gap: 5px; }
   .section-label {
     font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
-    color: #c8a44a; border-top: 1px solid #2a2a3e; padding-top: 3px;
+    color: #c8a44a; border-top: 1px solid #2E2218; padding-top: 3px;
   }
   .promise-card {
-    background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: #1C1510; border: 1px solid #2E2218; border-radius: 6px;
     padding: 6px 9px; text-align: left; cursor: pointer; font-family: inherit;
     display: flex; flex-direction: column; gap: 3px;
     transition: border-color 0.1s, background 0.1s;
@@ -183,7 +183,7 @@
   .cost-pill { font-size: 0.56rem; color: #888; }
   .change-hint { font-size: 0.56rem; color: #444; margin-left: auto; }
 
-  .promise-card.unpromised { border-color: #2a3a5a; background: #131320; }
+  .promise-card.unpromised { border-color: #2a3a5a; background: #14100B; }
   .promise-card.unpromised:active { background: #1a2a3a; }
   .promise-cta { font-size: 0.68rem; color: #4a9eff; font-style: italic; }
 
@@ -198,7 +198,7 @@
   .support-bar-wrap { flex: 1; }
   .support-bar {
     position: relative; height: 5px;
-    background: #2a2a3e; border-radius: 3px; overflow: hidden;
+    background: #2E2218; border-radius: 3px; overflow: hidden;
   }
   .support-fill { height: 100%; transition: width 0.3s; border-radius: 3px; opacity: 0.8; }
   .neutral-tick { position: absolute; left: 20%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.2); }

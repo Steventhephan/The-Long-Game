@@ -152,7 +152,7 @@
 
   /* Dynasty header */
   .dynasty-header {
-    background: #1a1a2e;
+    background: #1C1510;
     border: 1px solid #c8a44a55;
     border-radius: 8px;
     padding: 10px 12px;
@@ -197,7 +197,7 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: #c8a44a;
-    border-top: 1px solid #2a2a3e;
+    border-top: 1px solid #2E2218;
     padding-top: 4px;
     margin-top: 2px;
   }
@@ -210,8 +210,8 @@
   }
 
   .perk-row {
-    background: #1e1e30;
-    border: 1px solid #2a2a3e;
+    background: #201912;
+    border: 1px solid #2E2218;
     border-radius: 5px;
     padding: 6px 8px;
     display: flex;
@@ -226,7 +226,7 @@
   }
   .perk-row.owned {
     opacity: 0.5;
-    border-color: #2a2a3e;
+    border-color: #2E2218;
   }
   .perk-row.locked {
     opacity: 0.4;
@@ -292,7 +292,7 @@
     padding: 4px 6px;
     border-radius: 4px;
   }
-  .achieve-row.unlocked { background: #1a1a2e; }
+  .achieve-row.unlocked { background: #1C1510; }
   .achieve-row.locked { opacity: 0.4; }
   .achieve-icon {
     font-size: 0.75rem;
@@ -316,8 +316,8 @@
     gap: 3px;
   }
   .history-row {
-    background: #1a1a2e;
-    border: 1px solid #2a2a3e;
+    background: #1C1510;
+    border: 1px solid #2E2218;
     border-radius: 4px;
     padding: 4px 8px;
     display: flex;

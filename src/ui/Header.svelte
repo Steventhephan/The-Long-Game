@@ -2,25 +2,51 @@
   import { gameStore, displayPct, displayTimer, displayTimerLabel, displayCash } from '../state/store';
   import { playerPct, totalPool } from '../sim/election';
   import { getOffice } from '../config/offices';
+  import { ARCHETYPE_BIOS } from '../config/flavor';
+
+  // Stable per-slot colors (index = position in state.rivals array, so colors don't shift on elimination)
+  const RIVAL_COLORS = ['#E74C3C', '#E8944A', '#E8D840', '#9B59B6'];
 
   $: state = $gameStore;
   $: pct = playerPct(state);
   $: pool = totalPool(state);
 
-  // Lead rival: highest share among non-eliminated rivals
-  $: leadRival = state.rivals.reduce<{ name: string; share: number } | null>((best, r) => {
-    if (r.eliminated) return best;
-    if (!best || r.share > best.share) return { name: r.name, share: r.share };
-    return best;
-  }, null);
+  // Live rivals with original index preserved for stable color assignment.
+  // Sorted largest→smallest so wider bars render first (behind) and narrower bars sit on top.
+  $: liveRivals = state.rivals
+    .map((r, i) => ({ ...r, colorIdx: i }))
+    .filter(r => !r.eliminated)
+    .sort((a, b) => b.share - a.share);
 
-  $: leadRivalPct = leadRival && pool > 0 ? (leadRival.share / pool) * 100 : 0;
-  $: liveRivalCount = state.rivals.filter(r => !r.eliminated).length;
-  $: extraRivals = liveRivalCount - 1;  // rivals beyond the lead one
+  $: leadRival = liveRivals[0] ?? null;
+  $: leadRivalBio = leadRival ? (ARCHETYPE_BIOS[leadRival.archetypeId] ?? null) : null;
+
+  $: isWin = state.electionResult === 'win' || state.electionResult === 'runoff_win';
 
   $: office = (() => { try { return getOffice(state.officeIndex); } catch { return null; } })();
   $: officeName = office?.name ?? 'City Council';
   $: phaseName = state.phase === 'primary' ? 'Primary' : 'General';
+
+  function rivalPctStr(share: number): string {
+    return pool > 0 ? ((share / pool) * 100).toFixed(1) + '%' : '0.0%';
+  }
+
+  function lastName(fullName: string): string {
+    const parts = fullName.trim().split(' ');
+    return parts[parts.length - 1];
+  }
+
+  // Stack rivals from the right edge, largest first.
+  // Each item gets a rightOffset (% from right) and width (% of total pool).
+  $: stackedRivals = (() => {
+    let offset = 0;
+    return liveRivals.map(rival => {
+      const width = pool > 0 ? (rival.share / pool) * 100 : 0;
+      const item = { ...rival, width, rightOffset: offset };
+      offset += width;
+      return item;
+    });
+  })();
 </script>
 
 <header class="race-header">
@@ -32,21 +58,26 @@
   <div class="progress-row">
     <div class="progress-bar-wrap">
       <div class="progress-bar">
-        <div class="fill player" style="width: {Math.min(pct * 100, 100)}%"></div>
-        {#if leadRival}
-          <div class="fill rival" style="width: {Math.min(leadRivalPct, 100)}%"></div>
-        {/if}
+        <div class="fill player" class:celebrating={isWin} style="width: {Math.min(pct * 100, 100)}%"></div>
+        {#each stackedRivals as rival}
+          <div class="fill rival"
+            style="right: {rival.rightOffset}%; width: {Math.min(rival.width, 100)}%; background: {RIVAL_COLORS[rival.colorIdx % RIVAL_COLORS.length]}"
+          ></div>
+        {/each}
         <div class="threshold-line"></div>
       </div>
-      <div class="progress-labels">
+      <div class="bar-labels">
         <span class="player-pct">{$displayPct}</span>
-        {#if leadRival}
-          <span class="rival-pct">
-            {leadRivalPct.toFixed(1)}% {leadRival.name}
-            {#if extraRivals > 0}<span class="extra-rivals">+{extraRivals}</span>{/if}
-          </span>
-        {:else}
-          <span class="rival-pct dim">No rivals</span>
+        {#each stackedRivals as rival}
+          {@const color = RIVAL_COLORS[rival.colorIdx % RIVAL_COLORS.length]}
+          {@const center = 100 - rival.rightOffset - rival.width / 2}
+          <div class="rival-label" style="left: {center}%; color: {color}">
+            <span class="rival-lname">{lastName(rival.name)}</span>
+            <span class="rival-lpct">{rivalPctStr(rival.share)}</span>
+          </div>
+        {/each}
+        {#if liveRivals.length === 0}
+          <span class="no-rivals">No rivals</span>
         {/if}
       </div>
     </div>
@@ -68,16 +99,17 @@
 
 <style>
   .race-header {
-    background: #1a1a2e;
+    background: #1C1510;
     border-bottom: 2px solid #c8a44a;
     padding: 6px 12px 5px;
     flex-shrink: 0;
   }
   .race-title {
     font-size: 0.62rem;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: #c8a44a;
+    font-weight: bold;
     margin-bottom: 3px;
     display: flex;
     align-items: center;
@@ -97,14 +129,21 @@
   .progress-bar {
     position: relative;
     height: 9px;
-    background: #2a2a3e;
+    background: #2E2218;
     border-radius: 5px;
     overflow: hidden;
     margin-bottom: 2px;
   }
   .fill { position: absolute; top: 0; height: 100%; border-radius: 5px; transition: width 0.15s ease; }
   .fill.player { background: #4a9eff; left: 0; }
-  .fill.rival  { background: #e74c3c; right: 0; }
+  .fill.player.celebrating {
+    animation: bar-win-pulse 0.55s ease-in-out 5 alternate;
+  }
+  @keyframes bar-win-pulse {
+    from { filter: brightness(1); }
+    to   { filter: brightness(1.8); box-shadow: 0 0 8px 3px rgba(74, 158, 255, 0.55); }
+  }
+  .fill.rival  { right: 0; /* background set by inline style */ }
   .threshold-line {
     position: absolute;
     left: 50%;
@@ -112,20 +151,40 @@
     width: 1px;
     background: rgba(255,255,255,0.35);
   }
-  .progress-labels {
-    display: flex;
-    justify-content: space-between;
+  .bar-labels {
+    position: relative;
+    height: 26px;
+    margin-top: 2px;
+  }
+  .player-pct {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #4a9eff;
+    font-weight: bold;
     font-size: 0.6rem;
-    color: #aaa;
   }
-  .player-pct { color: #4a9eff; font-weight: bold; }
-  .rival-pct  { color: #e74c3c; }
-  .rival-pct.dim { color: #555; }
-  .extra-rivals {
-    color: #e89080;
-    font-size: 0.56rem;
-    margin-left: 3px;
+  .rival-label {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
   }
+  .rival-lname {
+    font-size: 0.55rem;
+    font-weight: bold;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  .rival-lpct {
+    font-size: 0.52rem;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  .no-rivals { position: absolute; right: 0; top: 2px; font-size: 0.6rem; color: #555; }
 
   .stats-row {
     display: flex;

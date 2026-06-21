@@ -8,17 +8,24 @@
   import PolicyModal from './PolicyModal.svelte';
   import MinigameModal from './MinigameModal.svelte';
   import EventModal from './EventModal.svelte';
+  import PresidencyWinOverlay from './PresidencyWinOverlay.svelte';
   import { gameStore } from '../state/store';
   import { policyModalIssueId, closePolicyModal } from '../state/uiStore';
+  import { eraForOffice } from '../sim/platform';
+  import { TICKER_LINES } from '../config/flavor';
+  import { unlockAudio } from '../audio/sounds';
 
   type Tab = 'campaign' | 'operation' | 'platform' | 'legacy';
   let activeTab: Tab = 'campaign';
 
   const operationUnlocked = true;
   const platformUnlocked = true; // Stances matter from City Council onward
+
+  $: era = eraForOffice($gameStore.officeIndex);
+  $: tickerContent = (TICKER_LINES[era] ?? TICKER_LINES['local']).join('  ·  ');
 </script>
 
-<div class="app-shell">
+<div class="app-shell" on:pointerdown={unlockAudio}>
   <Header />
 
   <main class="tab-content">
@@ -32,6 +39,12 @@
       <LegacyTab />
     {/if}
   </main>
+
+  <div class="ticker-wrap" aria-hidden="true">
+    <div class="ticker-track">
+      <span class="ticker-text">{tickerContent}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{tickerContent}</span>
+    </div>
+  </div>
 
   <nav class="tab-bar">
     <button
@@ -60,6 +73,7 @@
   </nav>
 
   <ResultModal />
+  <PresidencyWinOverlay />
 
   {#if $policyModalIssueId !== null}
     <PolicyModal initialIssueId={$policyModalIssueId} on:close={closePolicyModal} />
@@ -87,10 +101,41 @@
     overflow: hidden;
   }
 
+  .ticker-wrap {
+    flex-shrink: 0;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+    background: #0D0A06;
+    border-top: 1px solid #1E1610;
+    height: 22px;
+    display: flex;
+    align-items: center;
+  }
+
+  .ticker-track {
+    white-space: nowrap;
+    animation: ticker-scroll 55s linear infinite;
+    will-change: transform;
+  }
+
+  .ticker-text {
+    font-size: 0.52rem;
+    color: #4A3C30;
+    font-style: italic;
+    letter-spacing: 0.03em;
+    padding-left: 12px;
+  }
+
+  @keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+
   .tab-bar {
     display: flex;
-    background: #111122;
-    border-top: 1px solid #2a2a3e;
+    background: #130E09;
+    border-top: 1px solid #2E2218;
     flex-shrink: 0;
   }
 

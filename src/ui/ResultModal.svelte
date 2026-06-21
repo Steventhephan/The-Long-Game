@@ -1,11 +1,12 @@
 <script lang="ts">
   import { gameStore } from '../state/store';
+  import { playWin, playLoss } from '../audio/sounds';
   import { advanceElection, resetRun } from '../state/gameState';
   import { saveGame } from '../persist/autosave';
   import { playerPct } from '../sim/election';
   import { computePrestigeGain } from '../sim/prestige';
-  import { MAX_OFFICE_INDEX } from '../config/offices';
-  import { getOffice } from '../config/offices';
+  import { MAX_OFFICE_INDEX, getOffice } from '../config/offices';
+  import { OFFICE_TITLE_CARDS } from '../config/flavor';
 
   $: state = $gameStore;
   $: result = state.electionResult;
@@ -26,7 +27,17 @@
   // Prestige the player will bank on a loss (shown in lose modal).
   $: prestigeGain = computePrestigeGain(state, false);
 
-  $: show = result !== 'none';
+  $: show = result !== 'none' && !isPresidencyWin;
+
+  // Play sounds on result changes (only fires when result transitions, not on every render).
+  let prevResult = 'none';
+  $: {
+    if (result !== prevResult) {
+      if (result === 'win' || result === 'runoff_win') playWin();
+      else if (result === 'lose' || result === 'runoff_lose') playLoss();
+      prevResult = result;
+    }
+  }
 
   // Auto-dismiss the runoff_start signal after a beat (it's just a notification).
   let runoffTimer: ReturnType<typeof setTimeout> | null = null;
@@ -60,6 +71,17 @@
     if (state.phase === 'general') return 'Next Race →';
     return 'Advance to General →';
   })();
+
+  // Title card for the next office — shown on general wins only (office advances)
+  $: nextTitleCard = (() => {
+    if (isPresidencyWin) return null;
+    if (state.phase !== 'general') return null;
+    const nextIndex = state.officeIndex + 1;
+    try {
+      const nextOffice = getOffice(nextIndex);
+      return { office: nextOffice, card: OFFICE_TITLE_CARDS[nextOffice.id] ?? null };
+    } catch { return null; }
+  })();
 </script>
 
 {#if show}
@@ -84,6 +106,15 @@
           <p class="office-line">{currentOfficeName} {phaseName}</p>
           <p class="pct-line">You earned <strong>{pctDisplay}%</strong> of the vote.</p>
           {#if result === 'runoff_win'}<p class="sub">Won in the runoff.</p>{/if}
+          {#if nextTitleCard}
+            <div class="title-card">
+              <div class="title-card-label">Up next: {nextTitleCard.office.name}</div>
+              {#if nextTitleCard.card}
+                <div class="title-card-tagline">{nextTitleCard.card.tagline}</div>
+                <div class="title-card-quote">"{nextTitleCard.card.quote}"</div>
+              {/if}
+            </div>
+          {/if}
         {/if}
         <button class="modal-btn primary" on:click={onContinue}>{nextLabel}</button>
 
@@ -124,7 +155,7 @@
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
   .modal {
-    background: #1a1a2e;
+    background: #1C1510;
     border: 2px solid #c8a44a;
     border-radius: 12px;
     padding: 28px 24px;
@@ -153,6 +184,35 @@
   .sub { font-size: 0.78rem; color: #888; }
   .prestige-note { font-size: 0.75rem; color: #c8a44a; font-style: italic; }
   .prestige-note strong { color: #e8c46a; font-style: normal; }
+
+  .title-card {
+    background: #150F0A;
+    border: 1px solid #2E2218;
+    border-radius: 6px;
+    padding: 8px 10px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .title-card-label {
+    font-size: 0.56rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #c8a44a;
+  }
+  .title-card-tagline {
+    font-size: 0.72rem;
+    color: #f0ece4;
+    font-weight: bold;
+    font-style: italic;
+  }
+  .title-card-quote {
+    font-size: 0.62rem;
+    color: #88786A;
+    line-height: 1.4;
+    font-style: italic;
+  }
 
   .modal-btn {
     margin-top: 8px;

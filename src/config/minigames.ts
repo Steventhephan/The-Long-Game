@@ -10,7 +10,7 @@ export const MINIGAMES: MinigameDef[] = [
   {
     id: 'debate_taxes',
     type: 'debate',
-    mandatory: true,
+    mandatory: false,
     unlockEra: 'county',
     title: 'Primary Debate',
     prompt: '"Candidate, the voters want to know: where do you stand on taxes and government spending?"',
@@ -54,7 +54,7 @@ export const MINIGAMES: MinigameDef[] = [
   {
     id: 'debate_healthcare',
     type: 'debate',
-    mandatory: true,
+    mandatory: false,
     unlockEra: 'county',
     title: 'Town Debate',
     prompt: '"The number one issue on voters\' minds is healthcare. What\'s your plan?"',
@@ -99,7 +99,7 @@ export const MINIGAMES: MinigameDef[] = [
   {
     id: 'debate_policing',
     type: 'debate',
-    mandatory: true,
+    mandatory: false,
     unlockEra: 'county',
     title: 'Public Safety Forum',
     prompt: '"Residents are divided on public safety and policing. Where do you stand, Candidate?"',
@@ -155,9 +155,9 @@ export const MINIGAMES: MinigameDef[] = [
         id: 'fund_public',
         text: '"Fully fund public schools. Every child deserves a great education, full stop."',
         effects: [
-          { kind: 'blocSupport', groupId: 'teachers',            delta:  0.5 },
-          { kind: 'blocSupport', groupId: 'labor_unions',        delta:  0.2 },
-          { kind: 'blocSupport', groupId: 'energy_industry',     delta: -0.1 },
+          { kind: 'blocSupport', groupId: 'teachers',              delta:  0.5 },
+          { kind: 'blocSupport', groupId: 'labor_unions',         delta:  0.2 },
+          { kind: 'blocSupport', groupId: 'small_business_owners', delta: -0.1 },
           { kind: 'charisma',    delta: 2 },
         ],
       },

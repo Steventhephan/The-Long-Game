@@ -190,8 +190,8 @@
 
   /* Summary */
   .summary-section {
-    background: #1a1a2e;
-    border: 1px solid #2a2a4a;
+    background: #1C1510;
+    border: 1px solid #2E2218;
     border-radius: 6px;
     padding: 6px 10px;
     display: flex;
@@ -211,7 +211,7 @@
     font-size: 0.58rem;
     padding: 1px 5px;
     border-radius: 3px;
-    background: #2a2a3e;
+    background: #2E2218;
     color: #aaa;
     letter-spacing: 0.04em;
   }
@@ -226,14 +226,14 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: #c8a44a;
-    border-top: 1px solid #2a2a3e;
+    border-top: 1px solid #2E2218;
     padding-top: 3px;
   }
   .unit { color: #666; font-size: 0.58rem; }
 
   .gen-row {
-    background: #1e1e30;
-    border: 1px solid #2a2a3e;
+    background: #201912;
+    border: 1px solid #2E2218;
     border-radius: 5px;
     padding: 5px 8px;
     display: flex;
@@ -243,7 +243,7 @@
     opacity: 0.75;
     transition: opacity 0.1s, border-color 0.1s;
   }
-  .gen-row.affordable { opacity: 1; border-color: #3a3a5a; }
+  .gen-row.affordable { opacity: 1; border-color: #3A2E1A; }
 
   .gen-meta { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
   .gen-name { font-size: 0.75rem; color: #f0ece4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -274,8 +274,8 @@
 
   /* Upgrades */
   .upgrade-row {
-    background: #1e1e30;
-    border: 1px solid #2a2a3e;
+    background: #201912;
+    border: 1px solid #2E2218;
     border-radius: 5px;
     padding: 5px 8px;
     display: flex;
@@ -286,6 +286,6 @@
     transition: opacity 0.1s, border-color 0.1s;
   }
   .upgrade-row.affordable { opacity: 1; border-color: #3a5a3a; }
-  .upgrade-row.purchased  { opacity: 0.4; border-color: #2a2a3e; }
+  .upgrade-row.purchased  { opacity: 0.4; border-color: #2E2218; }
   .bought-badge { font-size: 0.62rem; color: #4a8a4a; white-space: nowrap; }
 </style>

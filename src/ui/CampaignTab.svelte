@@ -8,12 +8,15 @@
   import { TOWN_HALLS, FUNDRAISING_GALAS } from '../config/minigames';
   import { clearSave, saveGame } from '../persist/autosave';
   import { defaultState, activateAbility, openOptionalMinigame } from '../state/gameState';
+  import { playTap, playCrit } from '../audio/sounds';
 
   $: state = $gameStore;
 
   // Knock button — each tap spawns an independent floater
   interface Floater { id: number; text: string; isCrit: boolean; dx: number; }
+  interface CritRing { id: number; }
   let floaters: Floater[] = [];
+  let critRings: CritRing[] = [];
   let nextFloaterId = 0;
   let critFlash = false; // keeps button glow while any recent crit is active
   let critGlowTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -32,16 +35,21 @@
 
     floaters = [...floaters, { id, text: isCrit ? `⚡ +${gained}` : `+${gained}`, isCrit, dx }];
 
-    const duration = isCrit ? 1200 : 750;
+    const duration = isCrit ? 1200 : 800;
     setTimeout(() => { floaters = floaters.filter(f => f.id !== id); }, duration);
 
-    // Button glow follows the most recent crit
+    // Each crit spawns its own expanding ring (stacks correctly for rapid crits)
     if (isCrit) {
+      const ringId = nextFloaterId++;
+      critRings = [...critRings, { id: ringId }];
+      setTimeout(() => { critRings = critRings.filter(r => r.id !== ringId); }, 550);
+
       critFlash = true;
       if (critGlowTimeout) clearTimeout(critGlowTimeout);
       critGlowTimeout = setTimeout(() => { critFlash = false; }, 600);
     }
 
+    if (isCrit) playCrit(); else playTap();
     if ('vibrate' in navigator) navigator.vibrate(isCrit ? [30, 10, 30] : 15);
     recordTap();
   }
@@ -64,6 +72,8 @@
     if (n < 10) return n.toFixed(1);
     return formatNum(n);
   }
+
+  $: isWin = state.electionResult === 'win' || state.electionResult === 'runoff_win';
 
   $: effects = computeUpgradeEffects(state);
   $: stack = computeStack(state);
@@ -202,6 +212,9 @@
 
   <!-- Knock button -->
   <div class="knock-section">
+    {#each critRings as ring (ring.id)}
+      <div class="crit-ring" aria-hidden="true"></div>
+    {/each}
     {#each floaters as floater (floater.id)}
       <div
         class="knock-feedback"
@@ -330,7 +343,7 @@
   </div>
 
   <!-- Bloc breakdown -->
-  <div class="blocs-section">
+  <div class="blocs-section" class:celebrating={isWin}>
     <div class="section-label">Blocs</div>
     {#each blocsUnlockedForOffice(state.officeIndex) as group}
       {@const bloc = state.blocs.find(b => b.groupId === group.groupId)}
@@ -375,7 +388,7 @@
     z-index: 5;
     font-size: 1.4rem;
     font-weight: bold;
-    color: #a8d8ff;
+    color: #F0E8D8;
     -webkit-text-stroke: 1.5px #000;
     pointer-events: none;
     white-space: nowrap;
@@ -387,10 +400,27 @@
     text-shadow: 0 0 14px rgba(241, 196, 15, 0.7);
     animation: float-up 1.0s ease-out forwards;
   }
-  /* --dx drives the horizontal drift; translateX(-50%) centres the origin */
+  .crit-ring {
+    position: absolute;
+    top: 0; left: 50%;
+    width: 120px; height: 120px;
+    margin-left: -60px;
+    border-radius: 50%;
+    border: 3px solid #f1c40f;
+    pointer-events: none;
+    z-index: 4;
+    animation: ring-expand 0.55s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+  }
+  @keyframes ring-expand {
+    from { transform: scale(0.88); opacity: 0.9; }
+    to   { transform: scale(1.85); opacity: 0; }
+  }
+
+  /* --dx drives the horizontal drift; pop on spawn then float up */
   @keyframes float-up {
-    from { opacity: 1; transform: translateX(calc(-50% + 0px))       translateY(0)    scale(1); }
-    to   { opacity: 0; transform: translateX(calc(-50% + var(--dx))) translateY(-48px) scale(0.8); }
+    0%   { opacity: 1; transform: translateX(calc(-50% + 0px))                           translateY(0)     scale(1.2); }
+    18%  { opacity: 1; transform: translateX(calc(-50% + calc(var(--dx) * 0.2)))         translateY(-10px) scale(1.0); }
+    100% { opacity: 0; transform: translateX(calc(-50% + var(--dx)))                     translateY(-60px) scale(0.75); }
   }
 
   .knock-btn {
@@ -419,7 +449,7 @@
   }
   .knock-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .knock-icon { font-size: 1.8rem; line-height: 1; }
-  .knock-label { font-size: 0.72rem; letter-spacing: 0.12em; }
+  .knock-label { font-size: 0.72rem; letter-spacing: 0.18em; font-weight: bold; }
   .knock-crit-hint { font-size: 0.55rem; color: #888; letter-spacing: 0.05em; }
 
   /* Production rate display */
@@ -431,7 +461,7 @@
   .rate {
     font-size: 0.68rem;
     font-weight: bold;
-    color: #444;
+    color: #3A3028;
     transition: color 0.2s ease;
   }
   .rate-display.active .rate.voters { color: #4a9eff; }
@@ -439,9 +469,16 @@
 
   /* Blocs */
   .blocs-section { display: flex; flex-direction: column; gap: 3px; }
+  .blocs-section.celebrating .bloc-fill.you {
+    animation: bloc-shimmer 0.5s ease-in-out 6 alternate;
+  }
+  @keyframes bloc-shimmer {
+    from { filter: brightness(1); }
+    to   { filter: brightness(2.0) saturate(1.3); }
+  }
   .section-label {
     font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
-    color: #c8a44a; border-top: 1px solid #2a2a3e; padding-top: 3px;
+    color: #c8a44a; border-top: 1px solid #2E2218; padding-top: 3px;
     margin-bottom: 1px;
   }
   .bloc-row { display: flex; align-items: center; gap: 4px; }
@@ -457,7 +494,7 @@
     white-space: nowrap;
     flex-shrink: 0;
   }
-  .bloc-bar { flex: 1; height: 5px; background: #3a3a5a; border-radius: 3px; overflow: hidden; position: relative; }
+  .bloc-bar { flex: 1; height: 5px; background: #302418; border-radius: 3px; overflow: hidden; position: relative; }
   .bloc-fill { position: absolute; top: 0; height: 100%; transition: width 0.2s; border-radius: 3px; }
   .bloc-fill.you   { left: 0;  background: #4a9eff; }
   .bloc-fill.rival { right: 0; background: #e74c3c; }
@@ -478,15 +515,14 @@
   .modifier-row.negative { background: #1a0a0a; border-color: #4a2a2a; color: #c05050; }
   .mod-label { flex: 1; font-weight: bold; }
   .mod-timer { flex-shrink: 0; font-size: 0.58rem; opacity: 0.7; }
-  .mod-bar { width: 40px; height: 3px; background: #2a2a3e; border-radius: 2px; flex-shrink: 0; overflow: hidden; }
+  .mod-bar { width: 40px; height: 3px; background: #2E2218; border-radius: 2px; flex-shrink: 0; overflow: hidden; }
   .mod-fill { height: 100%; background: currentColor; border-radius: 2px; transition: width 0.5s linear; }
 
   /* Optional minigames */
   .optional-section { display: flex; flex-direction: column; gap: 4px; }
-  .optional-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .optional-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
   .optional-btn {
-    flex: 1; min-width: 120px;
-    background: #1a1a2e; border: 1px solid #2a3a5a;
+    background: #1C1510; border: 1px solid #2a3a5a;
     border-radius: 5px; padding: 5px 8px;
     display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
     cursor: pointer; font-family: inherit;
@@ -505,12 +541,12 @@
   .abilities-section { display: flex; flex-direction: column; gap: 3px; }
   .section-label {
     font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
-    color: #c8a44a; border-top: 1px solid #2a2a3e; padding-top: 3px;
+    color: #c8a44a; border-top: 1px solid #2E2218; padding-top: 3px;
     margin-bottom: 1px;
   }
 
   .ability-row {
-    background: #1e1e30; border: 1px solid #2a2a3e;
+    background: #201912; border: 1px solid #2E2218;
     border-radius: 5px; padding: 5px 8px;
     display: flex; align-items: center; gap: 8px;
     transition: border-color 0.1s;
@@ -538,12 +574,12 @@
   .ready-dot { color: #4a8a4a; }
   .no-cash { color: #c05050; }
 
-  .cd-bar { width: 32px; height: 3px; background: #2a2a3e; border-radius: 2px; overflow: hidden; }
+  .cd-bar { width: 32px; height: 3px; background: #2E2218; border-radius: 2px; overflow: hidden; }
   .cd-fill { height: 100%; background: #888; border-radius: 2px; transition: width 0.5s linear; }
   .cd-label { font-size: 0.6rem; color: #666; min-width: 22px; text-align: right; }
 
   .target-picker {
-    background: #13131f; border: 1px solid #c8a44a44;
+    background: #150F0A; border: 1px solid #c8a44a44;
     border-radius: 5px; padding: 5px 8px;
     display: flex; flex-direction: column; gap: 4px;
   }

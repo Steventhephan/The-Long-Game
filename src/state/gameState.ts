@@ -5,7 +5,6 @@ import { ISSUES } from '../config/issues';
 import { BAL } from '../config/balance';
 import { getOffice, MAX_OFFICE_INDEX } from '../config/offices';
 import { PERKS } from '../config/perks';
-import { DEBATES } from '../config/minigames';
 import { ABILITIES } from '../config/abilities';
 import { getMinigame } from '../config/minigames';
 import { getEvent } from '../config/events';
@@ -215,20 +214,14 @@ export function advanceElection(state: GameState): GameState {
     if (!achievements.includes(a)) achievements.push(a);
   }
 
-  // Queue mandatory debate for County+ era (officeIndex >= 2).
-  const electionsCompleted = nextOffice * 2 + (nextPhase === 'primary' ? 0 : 1);
-  const pendingMinigame = nextOffice >= 2
-    ? DEBATES[electionsCompleted % DEBATES.length].id
-    : null;
-
   return initElection(
     {
       ...state,
       officeIndex: nextOffice,
       phase: nextPhase,
       electionResult: 'none',
-      isPaused: pendingMinigame !== null,  // pause until debate is resolved
-      pendingMinigame,
+      isPaused: false,
+      pendingMinigame: null,
       activeEvent: null,
       eventModifiers: [],
       eventCooldown: 0,

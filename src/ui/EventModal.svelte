@@ -92,8 +92,8 @@
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
   .modal {
-    background: #13131f;
-    border: 1px solid #2a2a4a;
+    background: #150F0A;
+    border: 1px solid #2E2218;
     border-radius: 14px 14px 0 0;
     width: 100%; max-width: 480px;
     max-height: 80vh;
@@ -109,7 +109,7 @@
   .modal-header {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 14px 8px;
-    border-bottom: 1px solid #2a2a3e;
+    border-bottom: 1px solid #2E2218;
     flex-shrink: 0;
   }
   .event-badge {
@@ -122,7 +122,7 @@
 
   .prompt-section {
     padding: 10px 14px 8px;
-    border-bottom: 1px solid #1e1e30;
+    border-bottom: 1px solid #201912;
     flex-shrink: 0;
   }
   .prompt-text {
@@ -139,7 +139,7 @@
   }
 
   .choice-card {
-    background: #1a1a2e; border: 1px solid #2a2a4a;
+    background: #1C1510; border: 1px solid #2E2218;
     border-radius: 8px; padding: 10px 12px;
     text-align: left; cursor: pointer; font-family: inherit;
     transition: border-color 0.1s, background 0.1s;
@@ -151,7 +151,7 @@
 
   .confirm-row {
     padding: 10px 14px;
-    border-top: 1px solid #2a2a3e;
+    border-top: 1px solid #2E2218;
     flex-shrink: 0;
   }
   .confirm-btn {
@@ -162,6 +162,6 @@
     cursor: pointer; transition: opacity 0.1s;
   }
   .confirm-btn.danger:not(:disabled) { background: #c0392b; }
-  .confirm-btn:disabled { background: #2a2a3e; color: #555; cursor: not-allowed; }
+  .confirm-btn:disabled { background: #2E2218; color: #555; cursor: not-allowed; }
   .confirm-btn:not(:disabled):active { opacity: 0.85; }
 </style>

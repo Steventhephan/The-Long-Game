@@ -40,7 +40,7 @@ export const BAL = {
 export const PHASE1 = {
   tapVoters: 3,        // TUNING TARGET: 3/tap; at 4 taps/sec = 12/s — rival ~14.85/s, generators close the gap
   tapCash: 2,          // TUNING TARGET: proportionally reduced; first generator costs ~9s of tapping
-  playerBaseConv: 0.5, // TUNING TARGET: passive player voters/sec per bloc (minor drip; tap is the driver)
+  playerBaseConv: 0,   // TUNING TARGET: passive player voters/sec per bloc; 0 = taps+generators only
   // rivalBaseRate removed — each office now has its own rivalRate in config/offices.ts
   // canvasserOutput / smallDollarOutput removed — live in GeneratorDef.baseOutput in config/generators.ts
 } as const;
