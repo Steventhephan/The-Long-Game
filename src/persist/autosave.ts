@@ -108,6 +108,17 @@ function migrate(raw: Partial<GameState>): GameState {
     version = 4;
   }
 
+  if (version < 5) {
+    // v4 → v5: run history, run number, highestOfficeCompleted.
+    raw = {
+      ...raw,
+      runHistory: (raw as any).runHistory ?? [],
+      runNumber: (raw as any).runNumber ?? 1,
+      highestOfficeCompleted: (raw as any).highestOfficeCompleted ?? -1,
+    };
+    version = 5;
+  }
+
   // Merge with defaults so any future new fields get safe initial values.
   const defaults = defaultState();
   const merged: GameState = { ...defaults, ...raw, version: SAVE_VERSION };

@@ -1,6 +1,7 @@
 import { BAL } from '../config/balance';
 import { ISSUES, issuesForEra } from '../config/issues';
 import { getIdeology } from '../config/ideologies';
+import { computePerkEffects } from './prestige';
 import type { GameState, InterestGroupDef, IdeologyDef, Era } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -136,7 +137,9 @@ export function applyStanceChange(
   if (state.platform[issueId] === newStanceId) return state;
 
   const count = state.flipFlopCounts[issueId] ?? 0;
-  const cost = flipFlopCost(count);
+  const baseCost = flipFlopCost(count);
+  const perkMult = computePerkEffects(state).flipCostMult;
+  const cost = Math.round(baseCost * perkMult);
 
   if (state.cash < cost) return null;
 

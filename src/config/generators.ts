@@ -159,9 +159,9 @@ export function generatorsForOffice(officeIndex: number): GeneratorDef[] {
   return GENERATORS.filter(g => g.rung <= officeIndex);
 }
 
-/** Cost of the Nth copy (owned = count before this purchase). */
-export function generatorCost(def: GeneratorDef, owned: number): number {
-  return Math.ceil(def.baseCost * BAL.generatorCostGrowth ** owned);
+/** Cost of the Nth copy (owned = count before this purchase). costMult from perks. */
+export function generatorCost(def: GeneratorDef, owned: number, costMult = 1.0): number {
+  return Math.ceil(def.baseCost * BAL.generatorCostGrowth ** owned * costMult);
 }
 
 /** Total passive output per second for all owned copies. */
@@ -169,12 +169,12 @@ export function generatorOutput(def: GeneratorDef, owned: number): number {
   return def.baseOutput * owned;
 }
 
-/** Largest quantity affordable given current cash. */
-export function maxAffordable(def: GeneratorDef, owned: number, cash: number): number {
+/** Largest quantity affordable given current cash. costMult from perks. */
+export function maxAffordable(def: GeneratorDef, owned: number, cash: number, costMult = 1.0): number {
   let qty = 0;
   let remaining = cash;
   while (true) {
-    const c = generatorCost(def, owned + qty);
+    const c = generatorCost(def, owned + qty, costMult);
     if (remaining < c) break;
     remaining -= c;
     qty++;
@@ -183,10 +183,10 @@ export function maxAffordable(def: GeneratorDef, owned: number, cash: number): n
   return qty;
 }
 
-/** Total cost to buy `qty` copies starting from `owned`. */
-export function bulkCost(def: GeneratorDef, owned: number, qty: number): number {
+/** Total cost to buy `qty` copies starting from `owned`. costMult from perks. */
+export function bulkCost(def: GeneratorDef, owned: number, qty: number, costMult = 1.0): number {
   let total = 0;
-  for (let i = 0; i < qty; i++) total += generatorCost(def, owned + i);
+  for (let i = 0; i < qty; i++) total += generatorCost(def, owned + i, costMult);
   return total;
 }
 

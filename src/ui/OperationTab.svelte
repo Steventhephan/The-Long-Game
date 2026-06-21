@@ -1,6 +1,7 @@
 <script lang="ts">
   import { gameStore, formatNum } from '../state/store';
   import { computeStack, computeUpgradeEffects } from '../sim/election';
+  import { computePerkEffects } from '../sim/prestige';
   import { generatorsForOffice, generatorCost, generatorOutput, maxAffordable, bulkCost } from '../config/generators';
   import { upgradesForOffice } from '../config/upgrades';
   import { saveGame } from '../persist/autosave';
@@ -8,10 +9,15 @@
 
   $: state = $gameStore;
   $: effects = computeUpgradeEffects(state);
+  $: perkEffects = computePerkEffects(state);
   $: stack = computeStack(state);
   $: unlocked = generatorsForOffice(state.officeIndex);
   $: fieldGens = unlocked.filter(g => g.track === 'field');
   $: financeGens = unlocked.filter(g => g.track === 'finance');
+
+  function genCostMult(g: GeneratorDef): number {
+    return g.track === 'field' ? perkEffects.fieldCostMult : perkEffects.financeCostMult;
+  }
 
   // Live aggregate output rates (includes upgrades + global stack)
   $: totalFieldRate = fieldGens.reduce((sum, g) => {
@@ -30,7 +36,8 @@
 
   function buyGenerator(def: GeneratorDef, qty: number) {
     const owned = state.generators[def.id] ?? 0;
-    const cost = bulkCost(def, owned, qty);
+    const cm = genCostMult(def);
+    const cost = bulkCost(def, owned, qty, cm);
     if (state.cash < cost) return;
     const newState = {
       ...state,
@@ -42,7 +49,8 @@
   }
 
   function buyMax(def: GeneratorDef) {
-    const qty = maxAffordable(def, state.generators[def.id] ?? 0, state.cash);
+    const cm = genCostMult(def);
+    const qty = maxAffordable(def, state.generators[def.id] ?? 0, state.cash, cm);
     if (qty > 0) buyGenerator(def, qty);
   }
 
@@ -97,9 +105,10 @@
       <div class="section-header">{track.label} <span class="unit">{track.unit}</span></div>
       {#each track.gens as g}
         {@const owned = state.generators[g.id] ?? 0}
-        {@const cost1 = generatorCost(g, owned)}
+        {@const cm = genCostMult(g)}
+        {@const cost1 = generatorCost(g, owned, cm)}
         {@const canBuy1 = state.cash >= cost1}
-        {@const maxQty = maxAffordable(g, owned, state.cash)}
+        {@const maxQty = maxAffordable(g, owned, state.cash, cm)}
         {@const rate = genOutputRate(g)}
         <div class="gen-row" class:affordable={canBuy1}>
           <div class="gen-meta">

@@ -4,6 +4,60 @@ export type Track = 'field' | 'finance';
 export type Scalar = -1 | -0.5 | 0 | 0.5 | 1;   // stance scalars (5 positions)
 export type PreferredScalar = -1 | 0 | 1;          // interest group preferences (3 positions)
 
+// --- Prestige / perk types ---
+
+export type PerkEffect =
+  | { kind: 'headStart';         cashBonus: number }
+  | { kind: 'groundGame';        tapMult: number }
+  | { kind: 'fieldEfficiency';   costMult: number }
+  | { kind: 'financeEfficiency'; costMult: number }
+  | { kind: 'charismaProdigy';   accrualBonus: number }
+  | { kind: 'critMastery';       critBonus: number }
+  | { kind: 'blocWhisperer';     supportBonus: number }
+  | { kind: 'ironReputation';    flipCostMult: number }
+  | { kind: 'mediaDarling';      passiveMult: number }
+  | { kind: 'warChest';          cashCapBonus: number }
+  | { kind: 'fastForward';       timerSeconds: number }
+  | { kind: 'kingmaker';         globalMult: number };
+
+export interface PerkDef {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;       // prestige points
+  prereqs: string[];  // perk ids that must be owned first
+  effect: PerkEffect;
+}
+
+export interface PerkEffects {
+  tapMult: number;
+  critBonus: number;
+  fieldCostMult: number;
+  financeCostMult: number;
+  mediaDarlingMult: number;
+  flipCostMult: number;
+  headStartCash: number;
+  fastForwardSeconds: number;
+}
+
+// --- Achievement types ---
+
+export interface AchievementDef {
+  id: string;
+  name: string;
+  description: string;
+}
+
+// --- Run history ---
+
+export interface RunHistoryEntry {
+  runNumber: number;
+  officeName: string;
+  electionsWon: number;
+  prestigeEarned: number;
+  outcome: 'loss' | 'victory';
+}
+
 export interface BlocState {
   groupId: string;
   lean: number; // -1 (left) to 1 (right)
@@ -49,6 +103,9 @@ export interface GameState {
   perks: string[];
   achievements: string[];
   globalMultiplier: number;
+  runHistory: RunHistoryEntry[];
+  runNumber: number;
+  highestOfficeCompleted: number; // -1 = none; officeIndex of last office with completed general
 
   // transient UI signals — not persisted:
   lastCritHit: boolean;

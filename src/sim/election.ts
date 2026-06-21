@@ -1,6 +1,7 @@
 import { BAL, PHASE1 } from '../config/balance';
 import { GENERATORS } from '../config/generators';
 import { UPGRADES } from '../config/upgrades';
+import { computePerkEffects } from './prestige';
 import type { GameState, BlocState, RivalState, BlocStaticDef, RivalStaticDef, Era } from '../types';
 
 // TUNING TARGET: passive player auto-conversion rate per bloc (voters/sec).
@@ -113,6 +114,11 @@ export function computeUpgradeEffects(state: GameState): UpgradeEffects {
     if (e.kind === 'financeMult') financeMult *= e.value;
   }
 
+  // Apply prestige perk bonuses on top of upgrade effects.
+  const perks = computePerkEffects(state);
+  tapMult *= perks.tapMult;
+  critBonus += perks.critBonus;
+
   return {
     tapMult,
     critChance: Math.min(BAL.critBaseChance + critBonus, BAL.critChanceCap),
@@ -166,7 +172,16 @@ export function initElection(
   }));
 
   const baseTimer = BAL.generalTimerBase * BAL.timerGrowth ** officeIndex;
-  const timer = phase === 'primary' ? baseTimer * BAL.primaryTimerRatio : baseTimer;
+  let timer = phase === 'primary' ? baseTimer * BAL.primaryTimerRatio : baseTimer;
+
+  // Fast-Forward perk: already-cleared offices run on a short clock.
+  const ffPerks = computePerkEffects(state);
+  if (
+    ffPerks.fastForwardSeconds > 0 &&
+    officeIndex <= (state.highestOfficeCompleted ?? -1)
+  ) {
+    timer = ffPerks.fastForwardSeconds;
+  }
 
   return {
     ...state,
@@ -267,13 +282,14 @@ export function tick(state: GameState, dt: number): GameState {
   let cash = state.cash;
 
   const blocCount = blocs.length;
+  const mediaDarlingMult = computePerkEffects(state).mediaDarlingMult;
 
   // --- Player passive + rival conversion per bloc ---
   // Each candidate drains undecided first; any remaining demand steals from
   // the opponent's decided voters at the same rate (no efficiency penalty).
   for (const bloc of blocs) {
     const support = state.blocSupport[bloc.groupId] ?? 1.0;
-    const playerRate = BASE_CONV * support * stack;
+    const playerRate = BASE_CONV * mediaDarlingMult * support * stack;
     const playerDemand = playerRate * dt;
     const playerFromUndecided = Math.min(playerDemand, bloc.undecided);
     bloc.undecided -= playerFromUndecided;

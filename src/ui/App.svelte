@@ -3,12 +3,13 @@
   import CampaignTab from './CampaignTab.svelte';
   import OperationTab from './OperationTab.svelte';
   import PlatformTab from './PlatformTab.svelte';
+  import LegacyTab from './LegacyTab.svelte';
   import ResultModal from './ResultModal.svelte';
   import PolicyModal from './PolicyModal.svelte';
   import { gameStore } from '../state/store';
   import { policyModalIssueId, closePolicyModal } from '../state/uiStore';
 
-  type Tab = 'campaign' | 'operation' | 'platform';
+  type Tab = 'campaign' | 'operation' | 'platform' | 'legacy';
   let activeTab: Tab = 'campaign';
 
   const operationUnlocked = true;
@@ -25,6 +26,8 @@
       <OperationTab />
     {:else if activeTab === 'platform'}
       <PlatformTab />
+    {:else if activeTab === 'legacy'}
+      <LegacyTab />
     {/if}
   </main>
 
@@ -47,7 +50,11 @@
       class:active={activeTab === 'platform'}
       on:click={() => activeTab = 'platform'}
     >Platform</button>
-    <button class="tab-btn locked" disabled title="Unlocks later">Legacy</button>
+    <button
+      class="tab-btn"
+      class:active={activeTab === 'legacy'}
+      on:click={() => activeTab = 'legacy'}
+    >Legacy</button>
   </nav>
 
   <ResultModal />
