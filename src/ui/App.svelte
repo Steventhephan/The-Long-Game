@@ -106,6 +106,7 @@
     min-width: 0;
     width: 100%;
     overflow: hidden;
+    transform: translateZ(0); /* promotes to compositing layer — fixes iOS Safari clip of will-change children */
     background: #0D0A06;
     border-top: 1px solid #1E1610;
     height: 22px;
