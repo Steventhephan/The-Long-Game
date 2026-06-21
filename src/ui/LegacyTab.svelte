@@ -269,12 +269,13 @@
     border: 1px solid #c8a44a;
     color: #c8a44a;
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 7px 10px;
     font-size: 0.65rem;
     font-family: inherit;
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
+    min-height: 32px;
     transition: background 0.1s;
   }
   .perk-btn:active { background: #3a3518; }

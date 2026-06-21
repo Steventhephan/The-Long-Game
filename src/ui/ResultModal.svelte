@@ -154,6 +154,11 @@
   }
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
+  @media (prefers-reduced-motion: reduce) {
+    .modal-overlay { animation: none; }
+    .modal { animation: none; }
+  }
+
   .modal {
     background: #1C1510;
     border: 2px solid #c8a44a;

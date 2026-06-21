@@ -132,6 +132,10 @@
     to   { transform: translateX(-50%); }
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track { animation: none; }
+  }
+
   .tab-bar {
     display: flex;
     background: #130E09;
@@ -141,7 +145,8 @@
 
   .tab-btn {
     flex: 1;
-    padding: 7px 4px 5px;
+    padding: 9px 4px 7px;
+    min-height: 36px;
     background: transparent;
     border: none;
     border-top: 2px solid transparent;

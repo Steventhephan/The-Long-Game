@@ -370,7 +370,13 @@
 
   <!-- Bloc breakdown -->
   <div class="blocs-section" class:celebrating={isWin}>
-    <div class="section-label">Blocs</div>
+    <div class="section-label blocs-header">
+      Blocs
+      <span class="bloc-legend" aria-hidden="true">
+        <span class="legend-swatch you"></span>You
+        <span class="legend-swatch opp"></span>Opp
+      </span>
+    </div>
     {#each blocsUnlockedForOffice(state.officeIndex) as group}
       {@const bloc = state.blocs.find(b => b.groupId === group.groupId)}
       {@const pool = bloc?.totalVoters ?? 0}
@@ -521,9 +527,22 @@
     flex-shrink: 0;
   }
   .bloc-bar { flex: 1; height: 5px; background: #302418; border-radius: 3px; overflow: hidden; position: relative; }
+  .section-label.blocs-header { display: flex; align-items: center; }
+  .bloc-legend {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 4px;
+    font-size: 0.55rem; color: #888; letter-spacing: 0.04em;
+    text-transform: none;
+  }
+  .legend-swatch {
+    display: inline-block; width: 7px; height: 7px; border-radius: 1px;
+  }
+  .legend-swatch.you { background: #4a9eff; }
+  .legend-swatch.opp { background: #c8832a; }
+
   .bloc-fill { position: absolute; top: 0; height: 100%; transition: width 0.2s; border-radius: 3px; }
   .bloc-fill.you   { left: 0;  background: #4a9eff; }
-  .bloc-fill.rival { right: 0; background: #e74c3c; }
+  .bloc-fill.rival { right: 0; background: #c8832a; }
   .bloc-pct { font-size: 0.6rem; color: #4a9eff; min-width: 24px; text-align: right; }
 
   /* Event modifier banners */
@@ -543,6 +562,15 @@
   .mod-timer { flex-shrink: 0; font-size: 0.58rem; opacity: 0.7; }
   .mod-bar { width: 40px; height: 3px; background: #2E2218; border-radius: 2px; flex-shrink: 0; overflow: hidden; }
   .mod-fill { height: 100%; background: currentColor; border-radius: 2px; transition: width 0.5s linear; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .knock-feedback { animation: none; opacity: 0; }
+    .crit-ring { animation: none; opacity: 0; }
+    .knock-btn { transition: none; }
+    .bloc-fill { transition: none; }
+    .blocs-section.celebrating .bloc-fill.you { animation: none; }
+    .mod-fill { transition: none; }
+  }
 
   /* Optional minigames */
   .optional-section { display: flex; flex-direction: column; gap: 4px; }
@@ -589,9 +617,9 @@
   .ability-btn {
     background: #1a2a4a; border: 1px solid #4a9eff;
     color: #4a9eff; border-radius: 4px;
-    padding: 3px 8px; font-size: 0.65rem;
+    padding: 6px 10px; font-size: 0.65rem;
     font-family: inherit; cursor: pointer;
-    white-space: nowrap;
+    white-space: nowrap; min-height: 32px;
     transition: background 0.1s;
   }
   .ability-btn.active { background: #2a3a5a; border-color: #c8a44a; color: #c8a44a; }
@@ -614,8 +642,8 @@
   .target-btn {
     background: #1e2a3e; border: 1px solid #3a4a6a;
     color: #aaa; border-radius: 3px;
-    padding: 3px 7px; font-size: 0.62rem;
-    font-family: inherit; cursor: pointer;
+    padding: 6px 9px; font-size: 0.62rem;
+    font-family: inherit; cursor: pointer; min-height: 32px;
     transition: background 0.1s, color 0.1s;
   }
   .target-btn:active, .target-btn:hover { background: #2a3a5a; color: #f0ece4; }

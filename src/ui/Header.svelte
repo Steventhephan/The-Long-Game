@@ -5,7 +5,9 @@
   import { ARCHETYPE_BIOS } from '../config/flavor';
 
   // Stable per-slot colors (index = position in state.rivals array, so colors don't shift on elimination)
-  const RIVAL_COLORS = ['#E74C3C', '#E8944A', '#E8D840', '#9B59B6'];
+  // Color-blind safe: red stays for rival 0; slot 1 changed from orange → teal so
+  // red+orange can't conflate for deutan/protan users. Labels are the primary ID anyway.
+  const RIVAL_COLORS = ['#E74C3C', '#45A890', '#E8D840', '#9B59B6'];
 
   $: state = $gameStore;
   $: pct = playerPct(state);
@@ -22,6 +24,13 @@
   $: leadRivalBio = leadRival ? (ARCHETYPE_BIOS[leadRival.archetypeId] ?? null) : null;
 
   $: isWin = state.electionResult === 'win' || state.electionResult === 'runoff_win';
+
+  // Buzzer-loss warning: trailing with <15s left. Uses actual vote counts, not a fixed %
+  // threshold, so it correctly handles multi-rival primaries (33% may still be a lead).
+  $: atRisk = state.electionResult === 'none'
+    && state.timerRemaining > 0
+    && state.timerRemaining < 15
+    && liveRivals.some(r => r.share > state.voters);
 
   $: office = (() => { try { return getOffice(state.officeIndex); } catch { return null; } })();
   $: officeName = office?.name ?? 'City Council';
@@ -58,7 +67,7 @@
   <div class="progress-row">
     <div class="progress-bar-wrap">
       <div class="progress-bar">
-        <div class="fill player" class:celebrating={isWin} style="width: {Math.min(pct * 100, 100)}%"></div>
+        <div class="fill player" class:celebrating={isWin} class:at-risk={atRisk} style="width: {Math.min(pct * 100, 100)}%"></div>
         {#each stackedRivals as rival}
           <div class="fill rival"
             style="right: {rival.rightOffset}%; width: {Math.min(rival.width, 100)}%; background: {RIVAL_COLORS[rival.colorIdx % RIVAL_COLORS.length]}"
@@ -86,7 +95,7 @@
   <div class="stats-row">
     <div class="stat">
       <span class="stat-label">{$displayTimerLabel}</span>
-      <span class="stat-value timer" class:urgent={state.timerRemaining < 10}>
+      <span class="stat-value timer" class:at-risk={atRisk} class:urgent={state.timerRemaining < 10}>
         {$displayTimer}
       </span>
     </div>
@@ -194,5 +203,21 @@
   .stat { display: flex; flex-direction: column; }
   .stat-label { font-size: 0.55rem; text-transform: uppercase; color: #888; letter-spacing: 0.07em; }
   .stat-value { font-size: 0.85rem; font-weight: bold; color: #f0ece4; }
+  /* at-risk defined before urgent so urgent always overrides when both apply */
+  .timer.at-risk { color: #c8a44a; }
+  .fill.player.at-risk { animation: risk-pulse 1.2s ease-in-out infinite alternate; }
+  @keyframes risk-pulse {
+    from { filter: brightness(0.65); }
+    to   { filter: brightness(1.0); }
+  }
+
   .timer.urgent { color: #e74c3c; animation: pulse 0.5s ease-in-out infinite alternate; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .runoff-badge { animation: none; opacity: 1; }
+    .fill { transition: none; }
+    .fill.player.celebrating { animation: none; }
+    .fill.player.at-risk { animation: none; }
+    .timer.urgent { animation: none; }
+  }
 </style>

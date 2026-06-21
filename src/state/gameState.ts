@@ -472,6 +472,11 @@ export function devSkipToElection(
   // Starting cash: 5× the base cost of the highest-rung available generator.
   const startCash = Math.round(75 * Math.pow(8, targetOffice) * 5);
 
+  // Simulate having completed all prior offices so Fast-Forward fires on re-traversal tests.
+  const highestOfficeCompleted = targetOffice > 0
+    ? Math.max(state.highestOfficeCompleted ?? -1, targetOffice - 1)
+    : (state.highestOfficeCompleted ?? -1);
+
   const skeleton: GameState = {
     ...state,
     officeIndex: targetOffice,
@@ -485,6 +490,7 @@ export function devSkipToElection(
     isRunoff: false,
     blocSupport: newBlocSupport,
     ideologyId: ideology.id,
+    highestOfficeCompleted,
     pendingMinigame: null,
     minigameCooldowns: {},
     abilityCooldowns: {},

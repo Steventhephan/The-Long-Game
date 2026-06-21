@@ -261,12 +261,13 @@
     border: 1px solid #4a9eff;
     color: #4a9eff;
     border-radius: 3px;
-    padding: 3px 6px;
+    padding: 6px 8px;
     font-size: 0.65rem;
     font-family: inherit;
     cursor: pointer;
     transition: background 0.1s;
     white-space: nowrap;
+    min-height: 32px;
   }
   .buy-btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .buy-btn:not(:disabled):active { background: #3a4a6a; }

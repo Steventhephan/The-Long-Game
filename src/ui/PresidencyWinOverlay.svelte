@@ -226,4 +226,9 @@
     background: #c8a44a;
     color: #0A0705;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pres-overlay { animation: none; }
+    .scroll-content { animation: none; }
+  }
 </style>

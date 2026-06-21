@@ -203,4 +203,9 @@
   .support-fill { height: 100%; transition: width 0.3s; border-radius: 3px; opacity: 0.8; }
   .neutral-tick { position: absolute; left: 20%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.2); }
   .support-val { font-size: 0.6rem; min-width: 30px; text-align: right; font-weight: bold; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pos-marker { transition: none; }
+    .support-fill { transition: none; }
+  }
 </style>
