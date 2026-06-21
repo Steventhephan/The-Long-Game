@@ -30,8 +30,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(1),
     primaryPool: Math.round(pool(1) * BAL.primaryPoolRatio),
     rivalCount: 1,
-    rivalRatePrimary: 120, // TUNING TARGET: effective ~111.6/s (6 blocs, Sam Rivera mult ~0.930); passive only (67.1/s) loses; tapping+generators barely wins (118.6/s)
-    rivalRateGeneral: 170, // TUNING TARGET: effective ~191/s (Morgan Hayes mult ~1.124); player must build 4-5 phone banks mid-race while tapping throughout 126s timer
+    rivalRatePrimary: 150, // TUNING TARGET: effective ~139.5/s (6 blocs, Sam Rivera mult ~0.930); 3 PBs+10c passive (111.9/s) loses; tap+generators barely wins (163.4/s)
+    rivalRateGeneral: 210, // TUNING TARGET: effective ~236/s (Morgan Hayes mult ~1.124); player must build 6 phone banks mid-race while tapping throughout 126s timer
     unlocks: ['phone_bank', 'email_fundraising'],
   },
   {
@@ -42,8 +42,8 @@ export const OFFICES: OfficeDef[] = [
     generalPool: pool(2),
     primaryPool: Math.round(pool(2) * BAL.primaryPoolRatio),
     rivalCount: 2,
-    rivalRatePrimary: 160, // TUNING TARGET (~2.5× Mayor; first era wall — 2 rivals, tight pool ceiling)
-    rivalRateGeneral: 413, // TUNING TARGET (2.8× primary; feasibility headroom maintained by player's stealing mechanic)
+    rivalRatePrimary: 250, // TUNING TARGET: combined effective ~460/s (2 rivals, 9 blocs); heavy carry-over (~391/s passive) still loses; 1-2 Regional Offices ($9,600) required to win
+    rivalRateGeneral: 413, // TUNING TARGET: pending playtest with new primary
     unlocks: ['regional_office', 'donor_dinner'],
   },
   {

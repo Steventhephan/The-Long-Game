@@ -463,14 +463,11 @@ export function devSkipToElection(
   const position = computePosition(state.platform, era);
   const ideology = getIdeology(position);
 
-  // Pre-buy 2 of each generator available at this office (both tracks).
+  // No pre-bought generators — player starts clean so playtesting reflects real carry-over feel.
   const generators: Record<string, number> = {};
-  for (const g of GENERATORS) {
-    if (g.rung <= targetOffice) generators[g.id] = 2;
-  }
 
-  // Starting cash: 5× the base cost of the highest-rung available generator.
-  const startCash = Math.round(75 * Math.pow(8, targetOffice) * 5);
+  // Starting cash: 5× the base cost of the highest-rung generator at this tier.
+  const startCash = Math.round(GENERATORS[0].baseCost * Math.pow(8, targetOffice) * 5);
 
   // Simulate having completed all prior offices so Fast-Forward fires on re-traversal tests.
   const highestOfficeCompleted = targetOffice > 0

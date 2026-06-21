@@ -7,8 +7,8 @@ status: in-progress
 # Phase 7 Build Log — Balance, Accessibility, Polish
 
 > Previous head: `400570e` (Phase 6 complete)
-> Phase 7 commits: `a7a642f` (7.1–7.4), `cfa0cd8`, `70165e6`, `aa733a7`, `d1c32e5` (7.5 balance iterations)
-> Milestone 7.5 is IN PROGRESS — CC Primary confirmed good; CC General still iterating; Mayor+ not yet tested.
+> Phase 7 commits: `a7a642f` (7.1–7.4), `cfa0cd8`, `70165e6`, `aa733a7`, `d1c32e5` (7.5 balance iterations), `984e4af` (7.5–7.6 combined: balance fixes + performance pass)
+> **7.1–7.6 COMPLETE. Milestone 7.7 IN PROGRESS — Mayor+, ideology, prestige curve.**
 
 ## Milestone 7.1 — Reduced Motion Accessibility
 
@@ -132,11 +132,11 @@ Added to skeleton before `initElection`. Semantically correct: simulating arriva
 
 ---
 
-## Milestones 7.5–7.6 — PENDING
+## Milestones 7.5–7.6 — COMPLETE
 
-### 7.5 — Balance Playtest & Tuning (IN PROGRESS)
+### 7.5 — Balance Playtest & Tuning ✅
 
-**Status:** CC Primary confirmed good. CC General last change (rival 50→70) pending re-test. Mayor Primary and beyond not yet tested.
+**Status:** CC Primary ✅ good. CC General ✅ good. Mayor too easy (noted, fixed in 7.7). County+ deferred to 7.7.
 
 #### Key discoveries from playtesting
 
@@ -177,69 +177,103 @@ Initial model had generals at 75% of primary rival rate (carry-over generators =
 - CC General: 50 → **70**
 - Result: pending playtest.
 
-#### Current tuning state (as of last commit `d1c32e5`)
+#### Key discoveries from 7.5 (read before touching any rate)
 
-**`src/config/balance.ts`:**
-- `rungOutputMultiplier: 6` (was 7)
-- `tapVoters: 3`, `tapCash: 2` — unchanged
+**Stack multiplier (~1.79) amplifies player but NOT rivals.**
+`computeStack` multiplies tap voters, tap cash, and all generator output. On a default moderate platform, `supportAvg ≈ 1.79`. This was not accounted for in any prior calibration. Every player output must be calculated with stack applied; rivals are not stack-amplified.
 
-**`src/config/generators.ts`:**
-- `BASE_COST_0 = 150` (was 75)
-- `FIELD_OUT_0 = 5.0`, `FINANCE_OUT_0 = 2.0` — unchanged
-- Generator costs per rung: $150 → $1,200 → $9,600 → $76,800 → $614,400 → ...
-- Field output per rung: 5 → 30 → 180 → 1,080 → 6,480 → 38,880 → 233,280 → 1,399,680 voters/s
+**All 14 blocs were being used (diluted rival rate by 14×).**
+Fixed by switching `initElection` calls to `blocsUnlockedForOffice(officeIndex)`. CC now uses 3 blocs, Mayor 6, County 9, etc. Rival rate per bloc is now `rivalRate / unlockedBlocCount × leanMatch × archMod`.
 
-**`src/config/offices.ts` — current rival rates:**
+**Player tap has no lean filter; rivals do.**
+Player taps take voters proportionally from ALL unlocked blocs with no lean-match penalty. Rivals ARE filtered by `leanMatch = 0.5 + 0.5 × (1 − |rival.lean − bloc.lean| / 2)`. Real player tap at CC ≈ **38.6 v/s effective** (not 17.3/s as previously thought).
 
-| Office | Primary | General |
+**Finance→field feedback loop compounds quickly.**
+Finance generators fund mid-race canvasser/phone-bank purchases, which then generate more voters. `FINANCE_OUT_0` halved (2.0→1.0) to slow the loop.
+
+#### Calibration reference (as of commit `984e4af`)
+
+**Player tap v/s at each office** (= `Math.round(3 × 1.4^N) × 1.2 × 1.79 × 6`):
+
+| Office | N | Tap v/s |
 |---|---|---|
-| City Council | 25 | 70 |
-| Mayor | 65 | 182 |
-| County Council | 160 | 413 |
-| County Executive | 400 | 1,120 |
-| State Legislature | 985 | 2,625 |
-| Governor | 2,450 | 6,860 |
-| Senate | 6,125 | 17,150 |
-| President | 15,300 | 42,840 |
+| City Council | 0 | 38.6 |
+| Mayor | 1 | 51.5 |
+| County Council | 2 | 77.2 |
+| County Executive | 3 | 102.9 |
+| State Legislature | 4 | 154.4 |
+| Governor | 5 | 205.9 |
+| Senate | 6 | 296.4 |
+| President | 7 | 412.0 |
 
-**`src/config/upgrades.ts` — current upgrade costs:**
+**Generator effective v/s** (= `FIELD_OUT_0 × rungOutputMultiplier^rung × stack`):
 
-| Upgrade | Cost |
-|---|---|
-| Talking Points (tap ×2, rung 0) | $1,500 |
-| Lucky Break (crit +5%, rung 0) | $750 |
-| Grassroots Network (field ×2, rung 0) | $3,000 |
-| Matching Pledge (finance ×2, rung 0) | $2,500 |
-| Stump Speech (tap ×2, rung 1) | $12,000 |
-| Silver Tongue (crit +5%, rung 1) | $6,000 |
-| Precinct Captains (field ×2, rung 1) | $35,000 |
-| Donor Database (finance ×2, rung 1) | $25,000 |
-| Campaign Trail (tap ×2, rung 2) | $100,000 |
-| Rapid Response Team (field ×2, rung 2) | $300,000 |
-| Fundraising Gala (finance ×2, rung 2) | $200,000 |
+| Rung | Generator | Raw v/s | Effective (×1.79) |
+|---|---|---|---|
+| 0 | Canvasser | 2.5 | 4.47 |
+| 1 | Phone Bank | 12.5 | 22.4 |
+| 2 | Regional Office | 62.5 | 111.9 |
+| 3 | Campaign Bus | 312.5 | 559.4 |
+| 4 | Rally Tour | 1,562 | 2,796 |
 
-#### Revised parity formula (6 taps/sec baseline)
+**Current config (`src/config/`):**
+- `balance.ts`: `rungOutputMultiplier: 5` (was 7→6→5)
+- `generators.ts`: `BASE_COST_0=150`, `FIELD_OUT_0=2.5`, `FINANCE_OUT_0=1.0`
+- `state/gameState.ts`: uses `blocsUnlockedForOffice(officeIndex)` (was full `INTEREST_GROUPS`)
 
-Old: `rivalRate × 0.825 ≈ tapVoters × 4 = 12/s`
-New: `rivalRate × 0.825 ≈ tapVoters × 6 × 0.8 × critMult = 3 × 4.8 × 1.2 ≈ 17.3/s`
+**Confirmed rival rates:**
 
-CC Primary at 25: effective 20.6/s vs player 17.3/s → rival ahead, gens flip it ✓
+| Office | Primary | General | Status |
+|---|---|---|---|
+| City Council | 50 | 70 | ✅ confirmed good |
+| Mayor | 150 | 210 | 🔄 adjusted in 7.7, pending playtest |
+| County Council | 160 | 413 | ⬜ untested with new generator values |
+| County Executive | 400 | 1,120 | ⬜ untested |
+| State Legislature | 985 | 2,625 | ⬜ untested |
+| Governor | 2,450 | 6,860 | ⬜ untested |
+| Senate | 6,125 | 17,150 | ⬜ untested |
+| President | 15,300 | 42,840 | ⬜ untested |
 
-**When continuing 7.5, resume from:**
-1. Retest CC General (rival=70) — does it feel like a genuine fight throughout?
-2. Mayor Primary (rival=65) — is carry-over from CC + new Phone Bank the right investment gate?
-3. County Primary (rival=160, 2 rivals) — does it feel like the first real wall?
-4. Continue through all 8 offices
-5. Then test ideology even-handedness (Left/Center/Right builds at County+)
-6. Then verify prestige curve (+2%/pt vs era caps)
+---
 
-### 7.6 — Performance Pass
+### 7.6 — Performance Pass ✅
 
-- Add `will-change: transform` to any remaining animated elements not already GPU-composited
-- Profile tick loop for hot paths — current suspects: `computeUpgradeEffects` and `computePerkEffects` called every tick even when state hasn't changed (consider memoizing per tick)
-- Header rival bar labels: currently use `position: absolute; left: X%` which triggers layout — profile on mobile-tier CPU
-- Verify ticker animation is compositor-layer (it uses `translateX` with `will-change: transform` already set ✓)
-- Target: 60fps on mid-range phone (Galaxy A series tier)
+**Completed in commit `984e4af`:**
+- Memoized `computePerkEffects` (prestige.ts) and `computeUpgradeEffects` (election.ts) by array reference — O(1) cache hit on every tick where nothing was purchased
+- Added `will-change: transform` to `.knock-feedback`, `.crit-ring` (CampaignTab) and all modal entrance cards (EventModal, MinigameModal, PolicyModal, ResultModal, PresidencyWinOverlay)
+- Ticker already had `will-change: transform` ✓
+- Rival label `left: X%` layout cost noted as future micro-opt; subtree is small enough to be negligible on target hardware
+
+---
+
+## Milestone 7.7 — Full Balance Validation & Phase 7 Closure (IN PROGRESS)
+
+**Goal:** Playtest Mayor through President, lock ideology even-handedness, validate prestige curve. Phase 7 is DONE when all pass.
+
+### Checklist
+
+- [ ] **Mayor Primary** (rival=150) — player with heavy carry-over must tap throughout; Phone Bank is the key unlock
+- [ ] **Mayor General** (rival=210) — player must build 6+ Phone Banks mid-race while tapping constantly
+- [ ] **County Council Primary** (rival=160, 2 rivals) — first real wall; Regional Office ($9,600) is the tier-unlock investment
+- [ ] **County Council General** (rival=413, 2 rivals) — significantly harder; player must buy Regional Offices
+- [ ] **County Executive** (rival=400/1,120) — 2 rivals; Campaign Bus ($76,800) unlocks here
+- [ ] **State Legislature** (rival=985/2,625) — 3 rivals; era wall; abilities become available
+- [ ] **Governor** (rival=2,450/6,860) — 3 rivals
+- [ ] **Senate** (rival=6,125/17,150) — 4 rivals; near-federal difficulty spike
+- [ ] **President** (rival=15,300/42,840) — 4 rivals; victory condition
+- [ ] **Ideology check** — play one run each as Progressive, Moderate, Hard-liner at County+; all three should feel equally viable
+- [ ] **Prestige curve** — start a second run with 10+ prestige points; does +20% feel meaningfully faster?
+
+### Rate adjustment protocol
+
+If an office feels wrong, adjust `rivalRatePrimary` and/or `rivalRateGeneral` in `src/config/offices.ts`. No save migration needed. Use the calibration table above to anchor changes:
+- **Too easy (passive win):** rival effective must exceed player's passive generator total
+- **Too hard (can't win even tapping):** rival effective must be beatable with tap + mid-race generator purchases
+- **Target:** requires active tapping AND 1-2 generator purchases to win each election
+
+### Phase 7 done-when
+
+"Playtests confirm pacing, fairness, even-handedness, and smoothness." — Implementation Roadmap §Phase 7
 
 ---
 
