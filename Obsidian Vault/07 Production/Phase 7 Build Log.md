@@ -7,7 +7,8 @@ status: in-progress
 # Phase 7 Build Log — Balance, Accessibility, Polish
 
 > Previous head: `400570e` (Phase 6 complete)
-> Phase 7 work is on the same branch — no new git head yet (milestones 7.1–7.4 complete, 7.5–7.6 pending).
+> Phase 7 commits: `a7a642f` (7.1–7.4), `cfa0cd8`, `70165e6`, `aa733a7`, `d1c32e5` (7.5 balance iterations)
+> Milestone 7.5 is IN PROGRESS — CC Primary confirmed good; CC General still iterating; Mayor+ not yet tested.
 
 ## Milestone 7.1 — Reduced Motion Accessibility
 
@@ -133,29 +134,104 @@ Added to skeleton before `initElection`. Semantically correct: simulating arriva
 
 ## Milestones 7.5–7.6 — PENDING
 
-### 7.5 — Balance Playtest & Tuning (iterative — user drives sessions)
+### 7.5 — Balance Playtest & Tuning (IN PROGRESS)
 
-This milestone requires real human playtesting. Use "⚙ Skip to…" dev tool throughout.
+**Status:** CC Primary confirmed good. CC General last change (rival 50→70) pending re-test. Mayor Primary and beyond not yet tested.
 
-**Files to tune:**
-- `src/config/offices.ts` — `rivalRatePrimary` / `rivalRateGeneral` per office
-- `src/config/balance.ts` — `BAL` constants (timers, multiplier caps, prestige curve)
-- `src/config/generators.ts` — base output values if passive rate needs adjustment
+#### Key discoveries from playtesting
 
-**Key balance targets from design docs:**
-- CC Primary rival (~14.85/s effective) vs tap-only (~12/s) — rival slightly ahead; 2 generators flip it
-- Primary vs general rival rate: currently identical for Mayor+ — may need primary > general since generals have longer timers and carry-over generators
-- Prestige +2%/pt validated against era caps (×50 local → ×5000 federal) — if it breaches before 10+ runs, swap to diminishing curve
-- All 3 ideology alignments (Left, Center, Right) should win with similar difficulty through County+
-- Era walls: Local→County (first positioning system), County→State (biggest), State→Federal (national scale + max rivals)
+**Real tap rate is 6/sec at 80% uptime, not 4/sec.**
+All pre-7.5 balance was calibrated assuming 4 taps/sec. The user's actual play is 6 taps/sec for 80% of each election = 4.8 effective taps/sec. For voter math this is similar to the old "4/sec + crit bonus" assumption, but for cash it produces ~$9.6/s at CC (not $8/s), meaning more purchasing power than designed.
 
-**Parity check formula (from Phase 2 Addendum):**
-`rivalRate × leanMatchAvg(0.825) ≈ tapVoters × humanTapRate`
-- `3 × 4 = 12` player tap rate
-- CC primary: `18 × 0.825 = 14.85` → rival slightly ahead ✓
-- Re-verify this ratio before changing any rival rates
+**Tab-switching to buy generators mid-race is the primary exploit.**
+Player tabs to Operation, buys generators, tabs back and resumes tapping. No voter loss during the tab. At `BASE_COST_0=75`, a CC General's 90s timer at $9.6/s cash flow = $864 available, enough for 7–9 canvassers. This let players overcome ANY rival rate we set within that window. Fix: `BASE_COST_0: 75 → 150` — halves mid-race generator purchases.
 
-**No new persisted fields expected.** If a structural balance fix requires a new field, bump `SAVE_VERSION` to 7 and add migration in `autosave.ts`.
+**Upgrade costs were massively too low.**
+`tap_mult_1` at $150 was reachable in 12–15 seconds at CC, immediately doubling tap output and pushing the player above the rival before buying a single generator. Three stacked ×2 tap upgrades + three stacked ×2 field upgrades = ×64 combined multiplier. All upgrade costs raised ~10×.
+
+**Generals need to be HARDER than primaries, not easier.**
+Initial model had generals at 75% of primary rival rate (carry-over generators = easier). User explicitly rejected this: "at no point should it feel easier moving to the next election." The issue: the general's larger pool and longer timer ALREADY make it easier without any rate reduction — rivals cover a smaller fraction of the pool per second. To counteract this, general rates must be significantly ABOVE primary rates.
+
+#### Balance iterations (all in `src/config/`)
+
+**Iteration 1** (`cfa0cd8`):
+- CC primary: 18 → **25** (effective 20.6/s; tap+crits ~14.4/s = rival ahead)
+- All primaries: 2.5× per tier scaling from new CC base
+- Generals: set to 1.5× primary (was 0.75×)
+- `rungOutputMultiplier`: 7 → **6** (wired generators.ts to use `BAL.rungOutputMultiplier`)
+- Result: CC Primary felt good. Generals still too easy.
+
+**Iteration 2** (`70165e6`):
+- Upgrade costs raised ~10× across all categories
+- tap_mult_1: $150 → **$1,500**; field_mult_1: $400 → **$3,000**; etc.
+- Result: upgrades no longer trivially purchasable in first 30s. Game still too easy.
+
+**Iteration 3** (`aa733a7`):
+- General rival rates raised to 2× primary (from 1.5×)
+- CC General: 38 → **50**
+- Result: CC General still too easy — player tab-switches for generators through entire race.
+
+**Iteration 4** (`d1c32e5`):
+- `BASE_COST_0`: 75 → **150** (core fix for tab-switch exploit)
+- General rival rates raised to 2.8× primary
+- CC General: 50 → **70**
+- Result: pending playtest.
+
+#### Current tuning state (as of last commit `d1c32e5`)
+
+**`src/config/balance.ts`:**
+- `rungOutputMultiplier: 6` (was 7)
+- `tapVoters: 3`, `tapCash: 2` — unchanged
+
+**`src/config/generators.ts`:**
+- `BASE_COST_0 = 150` (was 75)
+- `FIELD_OUT_0 = 5.0`, `FINANCE_OUT_0 = 2.0` — unchanged
+- Generator costs per rung: $150 → $1,200 → $9,600 → $76,800 → $614,400 → ...
+- Field output per rung: 5 → 30 → 180 → 1,080 → 6,480 → 38,880 → 233,280 → 1,399,680 voters/s
+
+**`src/config/offices.ts` — current rival rates:**
+
+| Office | Primary | General |
+|---|---|---|
+| City Council | 25 | 70 |
+| Mayor | 65 | 182 |
+| County Council | 160 | 413 |
+| County Executive | 400 | 1,120 |
+| State Legislature | 985 | 2,625 |
+| Governor | 2,450 | 6,860 |
+| Senate | 6,125 | 17,150 |
+| President | 15,300 | 42,840 |
+
+**`src/config/upgrades.ts` — current upgrade costs:**
+
+| Upgrade | Cost |
+|---|---|
+| Talking Points (tap ×2, rung 0) | $1,500 |
+| Lucky Break (crit +5%, rung 0) | $750 |
+| Grassroots Network (field ×2, rung 0) | $3,000 |
+| Matching Pledge (finance ×2, rung 0) | $2,500 |
+| Stump Speech (tap ×2, rung 1) | $12,000 |
+| Silver Tongue (crit +5%, rung 1) | $6,000 |
+| Precinct Captains (field ×2, rung 1) | $35,000 |
+| Donor Database (finance ×2, rung 1) | $25,000 |
+| Campaign Trail (tap ×2, rung 2) | $100,000 |
+| Rapid Response Team (field ×2, rung 2) | $300,000 |
+| Fundraising Gala (finance ×2, rung 2) | $200,000 |
+
+#### Revised parity formula (6 taps/sec baseline)
+
+Old: `rivalRate × 0.825 ≈ tapVoters × 4 = 12/s`
+New: `rivalRate × 0.825 ≈ tapVoters × 6 × 0.8 × critMult = 3 × 4.8 × 1.2 ≈ 17.3/s`
+
+CC Primary at 25: effective 20.6/s vs player 17.3/s → rival ahead, gens flip it ✓
+
+**When continuing 7.5, resume from:**
+1. Retest CC General (rival=70) — does it feel like a genuine fight throughout?
+2. Mayor Primary (rival=65) — is carry-over from CC + new Phone Bank the right investment gate?
+3. County Primary (rival=160, 2 rivals) — does it feel like the first real wall?
+4. Continue through all 8 offices
+5. Then test ideology even-handedness (Left/Center/Right builds at County+)
+6. Then verify prestige curve (+2%/pt vs era caps)
 
 ### 7.6 — Performance Pass
 
